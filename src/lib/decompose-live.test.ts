@@ -85,9 +85,9 @@ test("decomposeLive on BASE binds every step to a BASE-accepting real host", () 
   }
 });
 
-test("decomposeLive on BASE with only Arc/mock fixtures returns an empty plan", () => {
+test("decomposeLive on BASE with only Arc/mock fixtures still binds pinned vanilla sellers", () => {
   const plan = decomposeLive({
-    prompt: "Get the current price of Bitcoin and Ethereum.",
+    presetId: "prices",
     catalog: CATALOG.filter(
       (item) =>
         item.resource.includes("example-agents.dev") ||
@@ -97,7 +97,6 @@ test("decomposeLive on BASE with only Arc/mock fixtures returns an empty plan", 
     network: BASE_NETWORK,
   });
   assert.ok(plan);
-  assert.equal(plan.steps.length, 0);
-  assert.match(plan.title, /Base Mainnet/i);
-  assert.match(plan.note ?? "", /eip155:8453/);
+  assert.equal(plan.steps.length, 1);
+  assert.match(plan.steps[0].listing.resource, /allium\.so/);
 });

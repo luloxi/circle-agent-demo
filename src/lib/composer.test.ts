@@ -70,16 +70,17 @@ const PRICE_ROLE: PresetRole = {
   title: "Spot prices",
   intent: "Latest BTC and ETH quotes",
   role: "prices",
-  keywords: ["price", "token", "alchemy", "symbol"],
-  fallbackUrl: "https://x402.alchemy.com/prices/v1/tokens/by-symbol",
+  keywords: ["price", "token", "allium"],
+  fallbackUrl: "https://agents.allium.so/api/v1/developer/prices",
 };
 
 test("filterLiveCatalog keeps BASE-accepting real hosts only", () => {
   const filtered = filterLiveCatalog(MIXED_CATALOG, "BASE");
-  assert.deepEqual(
-    filtered.map((item) => item.resource).sort(),
-    [BASE_PRICES.resource, BASE_SEARCH.resource].sort(),
-  );
+  const resources = filtered.map((item) => item.resource);
+  assert.ok(resources.includes(BASE_PRICES.resource));
+  assert.ok(resources.includes(BASE_SEARCH.resource));
+  assert.ok(resources.includes("https://api.exa.ai/search"));
+  assert.ok(!resources.some((url) => url.includes("example-agents.dev")));
   for (const item of filtered) {
     assert.equal(listingAcceptsChain(item, "BASE"), true);
     assert.equal(isMockMarketplaceHost(item.resource), false);
@@ -104,26 +105,26 @@ test("demo decomposePreset prices without a live chain picks a prices listing", 
   assert.ok(plan);
   assert.ok(plan.steps.length > 0);
   const prices = plan.steps[0];
-  assert.match(prices.listing.resource, /coingecko|\/prices|alchemy/i);
+  assert.match(prices.listing.resource, /coingecko|\/prices|allium/i);
   assert.doesNotMatch(prices.listing.resource, /example-agents\.dev\/v1\/events/);
 });
 
-test("pickListing live prefers Alchemy prices over AIsa CoinGecko", () => {
-  const alchemy = listing(
-    "https://x402.alchemy.com/prices/v1/tokens/by-symbol",
+test("pickListing live prefers Allium prices over AIsa CoinGecko", () => {
+  const allium = listing(
+    "https://agents.allium.so/api/v1/developer/prices",
     ["eip155:8453"],
-    { name: "Alchemy", tags: ["price", "token", "alchemy"] },
+    { name: "Allium", tags: ["price", "token", "allium"] },
   );
-  const picked = pickListing([BASE_PRICES, alchemy], PRICE_ROLE, "BASE", true);
-  assert.equal(picked.resource, alchemy.resource);
+  const picked = pickListing([BASE_PRICES, allium], PRICE_ROLE, "BASE", true);
+  assert.equal(picked.resource, allium.resource);
 });
 
-test("resolvePayRequest uses Alchemy GET symbols for prices", () => {
+test("resolvePayRequest uses Allium POST for prices", () => {
   const req = resolvePayRequest(BASE_PRICES, { role: "prices" });
-  assert.equal(req.method, "GET");
-  assert.match(req.url, /alchemy\.com\/prices/);
-  assert.match(req.url, /symbols=BTC/);
-  assert.match(req.url, /symbols=ETH/);
+  assert.equal(req.method, "POST");
+  assert.match(req.url, /allium\.so/);
+  const body = JSON.parse(req.data ?? "{}");
+  assert.equal(body.chain, "ethereum");
 });
 
 test("resolvePayRequest uses Exa POST for live search", () => {

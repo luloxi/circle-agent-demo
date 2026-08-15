@@ -88,7 +88,7 @@ export async function GET(request: Request) {
   if (demo) {
     return Response.json({ presets: presetCards() });
   }
-  const queries = ["alchemy tokens by-symbol", "exa search"];
+  const queries = ["allium prices", "exa"];
   const bags = await Promise.all(
     queries.map((query) =>
       searchServicesSafe({

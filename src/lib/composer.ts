@@ -45,8 +45,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Spot prices",
         intent: "Latest BTC and ETH quotes",
         role: "prices",
-        keywords: ["price", "token", "alchemy", "symbol"],
-        fallbackUrl: "https://x402.alchemy.com/prices/v1/tokens/by-symbol",
+        keywords: ["price", "token", "allium"],
+        fallbackUrl: "https://agents.allium.so/api/v1/developer/prices",
       },
       {
         title: "Context",
@@ -132,11 +132,58 @@ export const PRESETS: PresetDefinition[] = [
 const FALLBACK_BY_URL = new Map(MOCK_SERVICES.map((s) => [s.resource, s]));
 
 const DISCOVERY_QUERY_BY_PRESET: Record<string, string> = {
-  prices: "alchemy tokens by-symbol",
-  search: "exa search",
-  social: "exa search",
-  odds: "exa search",
+  prices: "allium prices",
+  search: "exa",
+  social: "exa",
+  odds: "exa",
 };
+
+const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const PIN_SELLER = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";
+
+/** Vanilla BASE listings Execute can actually pay (CLI Gateway timeout mismatches AIsa). */
+export const PINNED_LIVE_LISTINGS: ServiceListing[] = [
+  {
+    resource: "https://agents.allium.so/api/v1/developer/prices",
+    type: "http",
+    x402Version: 2,
+    accepts: [
+      {
+        scheme: "exact",
+        network: "eip155:8453",
+        asset: USDC_BASE,
+        amount: "20000",
+        payTo: PIN_SELLER,
+        extra: { name: "USD Coin", version: "2" },
+      },
+    ],
+    metadata: {
+      provider: { name: "Allium", tags: ["price", "token", "allium"] },
+      method: "POST",
+      description: "Spot token price by chain and contract.",
+    },
+  },
+  {
+    resource: "https://api.exa.ai/search",
+    type: "http",
+    x402Version: 2,
+    accepts: [
+      {
+        scheme: "exact",
+        network: "eip155:8453",
+        asset: USDC_BASE,
+        amount: "7000",
+        payTo: PIN_SELLER,
+        extra: { name: "USD Coin", version: "2" },
+      },
+    ],
+    metadata: {
+      provider: { name: "Exa", tags: ["exa", "search"] },
+      method: "POST",
+      description: "Web search for agents.",
+    },
+  },
+];
 
 export function discoveryQueryFor(presetId?: string, prompt?: string): string {
   if (presetId && DISCOVERY_QUERY_BY_PRESET[presetId]) {
@@ -184,16 +231,15 @@ export function resolvePayRequest(
   const role = opts?.role ?? "";
   const url = listing.resource;
 
-  if (/alchemy\.com\/prices\/v1\/tokens\/by-symbol/i.test(url) || role === "prices") {
-    const target = /by-symbol/i.test(url)
-      ? url.split("?")[0]
-      : "https://x402.alchemy.com/prices/v1/tokens/by-symbol";
-    const parsed = new URL(target);
-    if (!parsed.searchParams.has("symbols")) {
-      parsed.searchParams.append("symbols", "BTC");
-      parsed.searchParams.append("symbols", "ETH");
-    }
-    return { url: parsed.toString(), method: "GET" };
+  if (/allium\.so\/api\/v1\/developer\/prices/i.test(url) || role === "prices") {
+    return {
+      url: "https://agents.allium.so/api/v1/developer/prices",
+      method: "POST",
+      data: JSON.stringify({
+        chain: "ethereum",
+        token_address: "0x0000000000000000000000000000000000000000",
+      }),
+    };
   }
 
   if (/exa\.ai\/search/i.test(url) || role === "search" || role === "social" || role === "odds") {
@@ -231,9 +277,14 @@ export function filterLiveCatalog(
   catalog: ServiceListing[],
   chain: string,
 ): ServiceListing[] {
-  return catalog.filter(
-    (item) => !isMockMarketplaceHost(item.resource) && listingAcceptsChain(item, chain),
+  const pinned = PINNED_LIVE_LISTINGS.filter((item) => listingAcceptsChain(item, chain));
+  const rest = catalog.filter(
+    (item) =>
+      !isMockMarketplaceHost(item.resource) &&
+      listingAcceptsChain(item, chain) &&
+      !pinned.some((pin) => pin.resource === item.resource),
   );
+  return [...pinned, ...rest];
 }
 
 function scoreListing(
@@ -261,7 +312,7 @@ function scoreListing(
   if (live && isTemplatedResource(listing.resource)) score -= 12;
   if (live && (listing.metadata?.method ?? "GET").toUpperCase() === "GET") score += 4;
   if (live && /aisa\.one/i.test(listing.resource)) score -= 20;
-  if (live && /alchemy\.com\/prices/i.test(listing.resource)) score += 10;
+  if (live && /allium\.so/i.test(listing.resource)) score += 10;
   if (live && /exa\.ai\/search/i.test(listing.resource)) score += 10;
   return score;
 }
