@@ -595,8 +595,8 @@ const DEFAULT_ROLES: PresetRole[] = [
     title: "Web search",
     intent: "Find relevant sources",
     role: "search",
-    keywords: ["search", "sonar"],
-    fallbackUrl: "https://api.aisa.one/apis/v2/perplexity/sonar",
+    keywords: ["youtube", "search"],
+    fallbackUrl: "https://api.aisa.one/apis/v2/youtube/search",
   },
   {
     title: "Synthesize",
