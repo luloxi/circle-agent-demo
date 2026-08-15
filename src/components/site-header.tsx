@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { SparkleIcon } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -11,30 +10,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { NETWORK_LIST } from "@/lib/networks";
-import { formatUsdc, truncateAddress } from "@/lib/format";
+import { NETWORK_LIST, type AppMode } from "@/lib/networks";
+import { UsdcAmount } from "@/components/usdc-amount";
+import { truncateAddress } from "@/lib/format";
 import type { NetworkId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function SiteHeader({
   demoMode,
-  onDemoMode,
   network,
-  onNetwork,
+  onMode,
   address,
   connected,
   balanceUsdc,
+  onWallet,
   variant = "app",
 }: {
   demoMode?: boolean;
   onDemoMode?: (value: boolean) => void;
   network?: NetworkId;
   onNetwork?: (value: NetworkId) => void;
+  onMode?: (value: AppMode) => void;
   address?: string | null;
   connected?: boolean;
   balanceUsdc?: number | null;
+  onWallet?: () => void;
   variant?: "app" | "doc";
 }) {
+  const mode: AppMode = demoMode || !network ? "demo" : network;
   return (
     <header className="z-40 shrink-0 border-b border-white/5 bg-[#070b16]/70 backdrop-blur-2xl">
       <div className="mx-auto flex max-w-6xl items-center px-4 py-2.5 sm:px-6">
@@ -55,60 +58,49 @@ export function SiteHeader({
             <SparkleIcon className="size-3" />
             FAQ
           </Link>
-          {variant === "app" ? (
-            <label className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/8 bg-white/4 px-2.5 py-1 text-[11px] text-muted-foreground">
-              Demo
-              <Switch
-                id="demo-mode"
-                checked={Boolean(demoMode)}
-                onCheckedChange={onDemoMode}
-                size="sm"
-              />
-            </label>
-          ) : (
+          {variant === "doc" ? (
             <Link
               href="/"
               className="shrink-0 rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-[11px] tracking-[0.14em] text-cyan uppercase"
             >
               Composer
             </Link>
+          ) : (
+            <Select value={mode} onValueChange={(v) => onMode?.(v as AppMode)}>
+              <SelectTrigger size="sm" className="min-w-[8.5rem] shrink-0 border-white/8 bg-white/4">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="demo">Demo</SelectItem>
+                {NETWORK_LIST.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.shortLabel}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         </div>
 
         {variant === "app" ? (
         <div className="ml-2 flex shrink-0 items-center gap-2 sm:ml-2.5 sm:gap-2.5">
-          <Select value={network} onValueChange={(v) => onNetwork?.(v as NetworkId)}>
-            <SelectTrigger size="sm" className="min-w-[8.5rem] border-white/8 bg-white/4">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {NETWORK_LIST.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.shortLabel}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
           {connected ? (
-            <span className="price hidden items-center gap-1.5 text-sm sm:inline-flex">
-              <Image
-                src="/usdc.svg"
-                alt="USDC"
-                width={22}
-                height={22}
-                className="size-[1.375rem] shrink-0"
-              />
-              {formatUsdc(balanceUsdc, 2)}
-            </span>
+            <UsdcAmount
+              amount={balanceUsdc}
+              digits={2}
+              size="sm"
+              className="hidden sm:inline-flex"
+            />
           ) : null}
 
-          <span
+          <button
+            type="button"
+            onClick={onWallet}
             className={cn(
               "hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] sm:inline-flex",
               connected
-                ? "border-cyan/30 bg-cyan/10 text-cyan"
-                : "border-white/8 text-muted-foreground",
+                ? "border-cyan/30 bg-cyan/10 text-cyan hover:border-cyan/55"
+                : "border-white/8 text-muted-foreground hover:text-foreground",
             )}
           >
             <span
@@ -118,7 +110,7 @@ export function SiteHeader({
               )}
             />
             {connected && address ? truncateAddress(address) : "Off"}
-          </span>
+          </button>
         </div>
         ) : null}
       </div>

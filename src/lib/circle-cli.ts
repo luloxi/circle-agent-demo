@@ -295,40 +295,107 @@ export function parseWallets(parsed: unknown, fallbackChain: string): WalletInfo
   return wallets;
 }
 
+function readNumeric(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) {
+    return Number(value);
+  }
+  return null;
+}
+
+function tokenSymbol(row: Record<string, unknown>): string {
+  if (typeof row.symbol === "string") return row.symbol.toUpperCase();
+  if (typeof row.ticker === "string") return row.ticker.toUpperCase();
+  if (typeof row.token === "string") return row.token.toUpperCase();
+  if (row.token && typeof row.token === "object") {
+    const token = row.token as Record<string, unknown>;
+    if (typeof token.symbol === "string") return token.symbol.toUpperCase();
+    if (typeof token.name === "string") return token.name.toUpperCase();
+  }
+  return "";
+}
+
+function isNativeToken(row: Record<string, unknown>): boolean {
+  if (row.isNative === true) return true;
+  if (row.token && typeof row.token === "object") {
+    return (row.token as { isNative?: unknown }).isNative === true;
+  }
+  return false;
+}
+
+function rowAmount(row: Record<string, unknown>): number | null {
+  for (const key of ["amount", "balance", "usdc", "USDC"]) {
+    const n = readNumeric(row[key]);
+    if (n != null) return n;
+  }
+  return null;
+}
+
+/**
+ * Circle CLI `wallet balance` on Arc returns the same USDC pool twice:
+ * native gas view (18 decimals, isNative) and ERC-20 view (6 decimals).
+ * Prefer the ERC-20 row for display.
+ */
 export function parseBalanceUsdc(parsed: unknown, stdout: string): number | null {
   const data = unwrapData(parsed);
 
-  const fromRecord = (rec: Record<string, unknown>): number | null => {
-    for (const key of ["usdc", "USDC", "balance", "amount"]) {
-      const v = rec[key];
-      if (typeof v === "number" && Number.isFinite(v)) return v;
-      if (typeof v === "string" && v.trim() && Number.isFinite(Number(v))) {
-        return Number(v);
-      }
-    }
-    return null;
-  };
-
   if (data && typeof data === "object") {
     const rec = data as Record<string, unknown>;
-    const direct = fromRecord(rec);
-    if (direct != null) return direct;
+    const top = rowAmount(rec);
+    if (top != null && !Array.isArray(rec.balances) && !Array.isArray(rec.tokenBalances)) {
+      return top;
+    }
 
     const balances = rec.tokenBalances ?? rec.balances ?? rec.tokens;
     if (Array.isArray(balances)) {
+      let nativeUsdc: number | null = null;
+      let firstUsdc: number | null = null;
       for (const item of balances) {
         if (!item || typeof item !== "object") continue;
         const row = item as Record<string, unknown>;
-        const symbol = String(row.token ?? row.symbol ?? row.ticker ?? "").toUpperCase();
+        const symbol = tokenSymbol(row);
         if (symbol && symbol !== "USDC") continue;
-        const n = fromRecord(row);
-        if (n != null) return n;
+        const n = rowAmount(row);
+        if (n == null) continue;
+        if (!firstUsdc) firstUsdc = n;
+        if (isNativeToken(row)) {
+          nativeUsdc = n;
+          continue;
+        }
+        return n;
       }
+      if (nativeUsdc != null) return nativeUsdc;
+      if (firstUsdc != null) return firstUsdc;
     }
   }
 
   const match = stdout.match(/([\d.]+)\s*USDC/i);
   if (match) return Number(match[1]);
+  return null;
+}
+
+export function parseNativeBalance(
+  parsed: unknown,
+  stdout: string,
+): { symbol: string; amount: number } | null {
+  const data = unwrapData(parsed);
+  if (data && typeof data === "object") {
+    const rec = data as Record<string, unknown>;
+    const balances = rec.tokenBalances ?? rec.balances ?? rec.tokens;
+    if (Array.isArray(balances)) {
+      for (const item of balances) {
+        if (!item || typeof item !== "object") continue;
+        const row = item as Record<string, unknown>;
+        if (!isNativeToken(row)) continue;
+        const symbol = tokenSymbol(row) || "ETH";
+        if (symbol === "USDC") return null;
+        const n = rowAmount(row);
+        if (n != null) return { symbol, amount: n };
+      }
+    }
+  }
+  const match = stdout.match(/([\d.]+)\s*(ETH|MATIC|POL)\b/i);
+  if (match) return { symbol: match[2].toUpperCase(), amount: Number(match[1]) };
   return null;
 }
 

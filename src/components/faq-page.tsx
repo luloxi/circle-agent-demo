@@ -33,7 +33,7 @@ const PILLARS = [
   },
   {
     title: "USDC on Arc",
-    body: "Arc is Circle’s stablecoin-native L1. This demo defaults to Arc Testnet so a hackathon booth can settle for real, on testnet.",
+    body: "Arc is Circle’s stablecoin-native L1. The app opens in Demo Mode; switch to Arc Testnet when you want to settle on Circle’s L1 with faucet USDC.",
     image: "/faq/hero.jpg",
     href: "https://www.arc.io/",
   },
@@ -156,7 +156,7 @@ export function FaqPage() {
         </section>
 
         <section className="glass mt-12 rounded-2xl px-5">
-          <Accordion type="multiple" defaultValue={["what", "query", "wallet", "x402", "demo"]} className="w-full">
+          <Accordion type="multiple" defaultValue={["what", "wallet", "query", "cost", "run", "done"]} className="w-full">
             <AccordionItem value="what">
               <AccordionTrigger>What is this?</AccordionTrigger>
               <AccordionContent>
@@ -167,25 +167,47 @@ export function FaqPage() {
                 </p>
               </AccordionContent>
             </AccordionItem>
-            <AccordionItem value="query">
-              <AccordionTrigger>Query</AccordionTrigger>
-              <AccordionContent>
-                <p>A query becomes Marketplace steps with a USDC price on each hop.</p>
-              </AccordionContent>
-            </AccordionItem>
             <AccordionItem value="wallet">
               <AccordionTrigger>Wallet</AccordionTrigger>
               <AccordionContent>
-                <p>A Circle agent wallet holds USDC and signs x402 nanopayments.</p>
+                <p>Connect a Circle Agent Wallet first. It holds USDC and signs each hop.</p>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="query">
+              <AccordionTrigger>Query</AccordionTrigger>
+              <AccordionContent>
+                <p>Pick a preset or write a prompt. The composer turns it into Marketplace steps.</p>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="cost">
+              <AccordionTrigger>Cost</AccordionTrigger>
+              <AccordionContent>
+                <p>Every service has a USDC price. Swap economy / premium before you spend.</p>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="run">
+              <AccordionTrigger>Run</AccordionTrigger>
+              <AccordionContent>
+                <p>
+                  Inspect → estimate → pay. Official buyer path, one nanopayment per
+                  step. Chain comes from the seller&apos;s accepts[], method from
+                  inspect (-X).
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="done">
+              <AccordionTrigger>Done</AccordionTrigger>
+              <AccordionContent>
+                <p>The paid responses assemble into one answer. Start again or go back to the wallet.</p>
               </AccordionContent>
             </AccordionItem>
             <AccordionItem value="x402">
               <AccordionTrigger>x402</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  Official buyer path: inspect → estimate → pay. Chain comes from
-                  the seller&apos;s accepts[], method from inspect (-X). Gateway
-                  nanopayments are first-class.
+                  Official buyer path: inspect → estimate → pay. Gateway
+                  nanopayments are first-class. Agent Wallet pays are gas-abstracted —
+                  USDC only, no separate gas token.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -193,9 +215,9 @@ export function FaqPage() {
               <AccordionTrigger>Demo</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  Demo Mode always succeeds with a mock wallet. Live mode uses the
-                  public Discovery API plus the Circle CLI on this machine (Arc Testnet
-                  by default).
+                  The app opens in Demo Mode — mock wallet, always succeeds. Live mode
+                  uses the public Discovery API plus the Circle CLI on this machine.
+                  Pick Arc Testnet or Base Mainnet in the header.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -218,8 +240,10 @@ export function FaqPage() {
               <AccordionContent>
                 <p>
                   Arc is Circle’s stablecoin-native L1 — the economic OS this
-                  hackathon is built on. Testnet USDC, Agent Wallet, and Marketplace
-                  all land here first.
+                  hackathon is built on. You can hold testnet USDC in an Agent Wallet
+                  today. The public Marketplace catalog is still mainnet-only (no
+                  listings advertise eip155:5042002), so live Execute on Arc has
+                  nothing payable yet. Use Demo Mode for the full walkthrough.
                 </p>
               </AccordionContent>
             </AccordionItem>

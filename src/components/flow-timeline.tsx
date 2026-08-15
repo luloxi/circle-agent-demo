@@ -9,9 +9,11 @@ import {
   XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatUsdPrice, serviceName } from "@/lib/format";
+import { CatalogEscape } from "@/components/catalog-escape";
+import { UsdcAmount } from "@/components/usdc-amount";
+import { serviceName } from "@/lib/format";
 import { qualityLabel } from "@/lib/composer";
-import type { FlowStep, QualityTier, QueryPlan } from "@/lib/types";
+import type { FlowStep, NetworkId, QualityTier, QueryPlan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_ICON = {
@@ -25,23 +27,38 @@ const STATUS_ICON = {
 export function FlowTimeline({
   plan,
   executing,
+  network,
   onExecute,
   onRemove,
   onAlternative,
+  onDemo,
+  onNetwork,
 }: {
   plan: QueryPlan;
   executing: boolean;
+  network?: NetworkId;
   onExecute: () => void;
   onRemove: (stepId: string) => void;
   onAlternative: (stepId: string, quality: QualityTier) => void;
+  onDemo?: () => void;
+  onNetwork?: (id: NetworkId) => void;
 }) {
   return (
     <div className="glass flex h-full min-h-0 flex-col rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
         <h2 className="font-heading text-lg tracking-tight">{plan.title}</h2>
-        <span className="price text-xl">{formatUsdPrice(plan.estimatedTotal)}</span>
+        <UsdcAmount amount={plan.estimatedTotal} size="lg" />
       </div>
 
+      {plan.steps.length === 0 && (plan.note || (onDemo && onNetwork && network)) ? (
+        <div className="flex min-h-0 flex-1 flex-col justify-center">
+          {onDemo && onNetwork && network ? (
+            <CatalogEscape network={network} onDemo={onDemo} onNetwork={onNetwork} />
+          ) : (
+            <p className="text-sm leading-relaxed text-muted-foreground">{plan.note}</p>
+          )}
+        </div>
+      ) : (
       <ol className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto md:flex-row md:items-stretch">
         {plan.steps.map((step, index) => (
           <StepRow
@@ -54,6 +71,7 @@ export function FlowTimeline({
           />
         ))}
       </ol>
+      )}
 
       {plan.steps.length > 0 ? (
         <Button
@@ -111,7 +129,7 @@ function StepRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2 md:flex-col md:items-start">
           <div className="truncate text-sm font-medium">{step.title}</div>
-          <div className="price text-sm">{formatUsdPrice(step.paidUsdc ?? step.priceUsdc)}</div>
+          <UsdcAmount amount={step.paidUsdc ?? step.priceUsdc} size="sm" />
         </div>
         <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
           {serviceName(step.listing)}
@@ -130,7 +148,10 @@ function StepRow({
                 onClick={() => onAlternative(alt.quality)}
                 className="rounded-full border border-white/8 px-2 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-cyan/30 hover:text-cyan"
               >
-                {qualityLabel(alt.quality)} · {formatUsdPrice(alt.priceUsdc)}
+                <span className="inline-flex items-center gap-1">
+                  {qualityLabel(alt.quality)} ·
+                  <UsdcAmount amount={alt.priceUsdc} size="xs" />
+                </span>
               </button>
             ))}
             <button

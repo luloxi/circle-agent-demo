@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "npx --yes tsx --test src/lib/composer.test.ts src/lib/decompose-live.test.ts"
   },
   "dependencies": {
     "@circle-fin/cli": "^1.0.0",

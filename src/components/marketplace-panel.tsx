@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   cheapestAcceptance,
-  formatUsdPrice,
   serviceName,
   usdcFromAcceptance,
 } from "@/lib/format";
+import { UsdcAmount } from "@/components/usdc-amount";
 import type { InspectResult, ServiceListing } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -116,7 +116,7 @@ export function MarketplacePanel({
               )}
             >
               <span className="min-w-0 truncate text-sm">{serviceName(service)}</span>
-              <span className="price shrink-0 text-base">{formatUsdPrice(price)}</span>
+              <UsdcAmount amount={price} size="md" className="shrink-0" />
             </button>
           );
         })}

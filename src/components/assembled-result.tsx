@@ -1,6 +1,6 @@
 "use client";
 
-import { formatUsdPrice } from "@/lib/format";
+import { UsdcAmount } from "@/components/usdc-amount";
 import type { QueryPlan } from "@/lib/types";
 
 export function AssembledResult({ plan }: { plan: QueryPlan }) {
@@ -14,7 +14,7 @@ export function AssembledResult({ plan }: { plan: QueryPlan }) {
           <h2 className="font-heading max-w-xl text-xl tracking-tight sm:text-2xl">
             {result.headline}
           </h2>
-          <span className="price shrink-0 text-xl">{formatUsdPrice(plan.spentTotal)}</span>
+          <UsdcAmount amount={plan.spentTotal} size="lg" className="shrink-0" />
         </div>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-foreground/80">
           {result.summary}

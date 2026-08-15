@@ -74,6 +74,11 @@ export const api = {
       body: JSON.stringify({ step: "complete", requestId, otp, chain }),
     }),
 
+  logout: () =>
+    request<{ ok: boolean; message: string }>("/api/wallet/logout", {
+      method: "POST",
+    }),
+
   terms: () => request<TermsInfo>("/api/wallet/terms"),
 
   acceptTerms: () =>
@@ -89,7 +94,11 @@ export const api = {
       address,
     });
     if (demoBalance != null) qs.set("demoBalance", String(demoBalance));
-    return request<{ balanceUsdc: number | null }>(`/api/wallet/balance?${qs}`);
+    return request<{
+      balanceUsdc: number | null;
+      nativeSymbol?: string | null;
+      nativeAmount?: number | null;
+    }>(`/api/wallet/balance?${qs}`);
   },
 
   fund: (demo: boolean, chain: NetworkId, address: string) =>

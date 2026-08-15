@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SparkleIcon, WalletIcon } from "lucide-react";
 import { AssembledResult } from "@/components/assembled-result";
 import { ConnectDialog } from "@/components/connect-dialog";
@@ -22,7 +22,7 @@ import {
   removeStep,
 } from "@/lib/composer";
 import { DEMO_FUND_AMOUNT, DEMO_STARTING_BALANCE } from "@/lib/mock-data";
-import { DEFAULT_NETWORK, getNetwork } from "@/lib/networks";
+import { DEFAULT_NETWORK, type AppMode } from "@/lib/networks";
 import type {
   ActivityEntry,
   InspectResult,
@@ -135,13 +135,19 @@ export function DemoApp({
         reveal(2);
       } else {
         setView(1);
-        log("warn", "FUND", "Wallet is empty. Get testnet USDC from the Circle faucet.");
+        log(
+          "warn",
+          "FUND",
+          network === "BASE"
+            ? "Wallet is empty. Add USDC on Base to this address."
+            : "Wallet is empty. Get testnet USDC from the Circle faucet.",
+        );
       }
     }
     if (bal != null) {
       log("ok", "BAL", `Balance ${bal.toFixed(2)} USDC`);
     }
-  }, [log, reveal]);
+  }, [log, network, reveal]);
 
   const resetSession = useCallback(() => {
     setWallet(null);
@@ -221,6 +227,23 @@ export function DemoApp({
     return null;
   }
 
+  async function handleDisconnect() {
+    log("info", "AUTH", "Disconnecting…");
+    if (!demoMode) {
+      try {
+        const result = await api.logout();
+        log(result.ok ? "ok" : "warn", "AUTH", result.message);
+      } catch (err) {
+        log("warn", "AUTH", err instanceof Error ? err.message : "Logout skipped");
+      }
+    }
+    resetSession();
+    setPrompt("");
+    setExecuting(false);
+    setConnectOpen(false);
+    log("ok", "AUTH", "Disconnected. Connect another wallet when ready.");
+  }
+
   async function ensureWallet(): Promise<WalletInfo | null> {
     if (wallet) return wallet;
     if (demoMode) {
@@ -238,7 +261,7 @@ export function DemoApp({
       return;
     }
     if (!demoMode) {
-      window.open(getNetwork(network).faucetUrl, "_blank", "noopener,noreferrer");
+      setFundOpen(true);
     }
     setFunding(true);
     log("info", "FUND", demoMode ? "Requesting demo faucet…" : "Requesting funds…");
@@ -253,17 +276,7 @@ export function DemoApp({
         setFunded(true);
         log("ok", "FUND", result.message);
       } else {
-        if (result.faucetUrl) window.open(result.faucetUrl, "_blank", "noopener,noreferrer");
-        setFundOpen(true);
         log(result.ok ? "ok" : "warn", "FUND", result.message);
-        if (wallet?.address) {
-          const bal = await api.balance(false, network, wallet.address);
-          if (bal.balanceUsdc != null) {
-            setBalanceUsdc(bal.balanceUsdc);
-            setFunded(bal.balanceUsdc > 0);
-            log("ok", "BAL", `Balance ${bal.balanceUsdc.toFixed(2)} USDC`);
-          }
-        }
       }
     } catch (err) {
       log("error", "FUND", err instanceof Error ? err.message : "Fund failed");
@@ -272,24 +285,59 @@ export function DemoApp({
     }
   }
 
-  async function handleRefresh() {
-    if (!wallet?.address) return;
+  const balanceRef = useRef(balanceUsdc);
+  balanceRef.current = balanceUsdc;
+
+  const handleRefresh = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!wallet?.address) return null;
     try {
       const bal = await api.balance(
         demoMode,
         network,
         wallet.address,
-        demoMode ? (balanceUsdc ?? undefined) : undefined,
+        demoMode ? (balanceRef.current ?? undefined) : undefined,
       );
-      setBalanceUsdc(bal.balanceUsdc);
       if (bal.balanceUsdc != null) {
+        setBalanceUsdc(bal.balanceUsdc);
         setFunded(bal.balanceUsdc > 0);
-        log("ok", "BAL", `Balance ${bal.balanceUsdc.toFixed(2)} USDC`);
+        if (!opts?.silent) {
+          log("ok", "BAL", `Balance ${bal.balanceUsdc.toFixed(2)} USDC`);
+        }
       }
+      return bal.balanceUsdc;
     } catch (err) {
-      log("error", "BAL", err instanceof Error ? err.message : "Balance failed");
+      if (!opts?.silent) {
+        log("error", "BAL", err instanceof Error ? err.message : "Balance failed");
+      }
+      return null;
     }
-  }
+  }, [demoMode, log, network, wallet?.address]);
+
+  const walletAddress = wallet?.address ?? "";
+  const liveEmpty = (balanceUsdc ?? 0) <= 0 ? 1 : 0;
+
+  useEffect(() => {
+    const watching = !demoMode && Boolean(walletAddress) && (fundOpen || liveEmpty === 1);
+    if (!watching) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      const next = await handleRefresh({ silent: true });
+      if (cancelled || next == null) return;
+      const prev = balanceRef.current ?? 0;
+      if (next > prev) {
+        log("ok", "BAL", `Balance ${next.toFixed(2)} USDC`);
+        setFunded(true);
+      }
+    };
+
+    void tick();
+    const id = window.setInterval(() => void tick(), 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [demoMode, fundOpen, handleRefresh, liveEmpty, log, walletAddress]);
 
   function handleSelect(service: ServiceListing) {
     setSelected(service);
@@ -492,17 +540,22 @@ export function DemoApp({
   }
 
   function handleDemoMode(next: boolean) {
-    setDemoMode(next);
-    resetSession();
-    log("info", "MODE", next ? "Demo Mode on" : "Live Mode on");
-    void search(query, category);
+    handleMode(next ? "demo" : network);
   }
 
   function handleNetwork(next: NetworkId) {
-    setNetwork(next);
+    handleMode(next);
+  }
+
+  function handleMode(next: AppMode) {
+    const nextDemo = next === "demo";
+    setDemoMode(nextDemo);
+    if (!nextDemo) setNetwork(next);
     resetSession();
-    log("info", "NET", `Switched to ${next}`);
+    log("info", "MODE", nextDemo ? "Demo" : next);
     void search(query, category);
+    if (nextDemo) reveal(2);
+    else setView(1);
   }
 
   const step = useMemo(() => {
@@ -549,12 +602,12 @@ export function DemoApp({
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <SiteHeader
         demoMode={demoMode}
-        onDemoMode={handleDemoMode}
         network={network}
-        onNetwork={handleNetwork}
+        onMode={handleMode}
         address={wallet?.address ?? null}
         connected={Boolean(wallet)}
         balanceUsdc={balanceUsdc}
+        onWallet={() => setView(1)}
       />
 
       <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
@@ -583,7 +636,10 @@ export function DemoApp({
                 onConnect={() => void handleConnect()}
                 onFund={() => void handleFund()}
                 onRefresh={() => void handleRefresh()}
+                onDisconnect={() => void handleDisconnect()}
                 onClearActivity={() => setLogs([])}
+                onDemo={() => handleDemoMode(true)}
+                onNetwork={handleNetwork}
               />
             </div>
           ) : null}
@@ -634,11 +690,14 @@ export function DemoApp({
                 <FlowTimeline
                   plan={plan}
                   executing={executing}
+                  network={network}
                   onExecute={() => void executeCurrent()}
                   onRemove={(id) => setPlan((p) => (p ? removeStep(p, id) : p))}
                   onAlternative={(id, quality: QualityTier) =>
                     setPlan((p) => (p ? applyAlternative(p, id, quality) : p))
                   }
+                  onDemo={() => handleDemoMode(true)}
+                  onNetwork={handleNetwork}
                 />
                 <CostExplorer
                   plan={plan}
@@ -663,11 +722,14 @@ export function DemoApp({
                 <FlowTimeline
                   plan={plan}
                   executing={executing}
+                  network={network}
                   onExecute={() => void executeCurrent()}
                   onRemove={(id) => setPlan((p) => (p ? removeStep(p, id) : p))}
                   onAlternative={(id, quality: QualityTier) =>
                     setPlan((p) => (p ? applyAlternative(p, id, quality) : p))
                   }
+                  onDemo={() => handleDemoMode(true)}
+                  onNetwork={handleNetwork}
                 />
               ) : (
                 <EmptyStage />
@@ -719,6 +781,8 @@ export function DemoApp({
         message={fundMessage}
         commands={fundCommands}
         faucetUrl={fundUrl}
+        balanceUsdc={balanceUsdc}
+        watching={!demoMode && Boolean(wallet?.address)}
       />
     </div>
   );

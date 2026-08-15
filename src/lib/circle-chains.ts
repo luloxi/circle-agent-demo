@@ -48,6 +48,16 @@ const ALIAS_TO_CLI: Record<string, string> = {
   arc: "ARC-TESTNET",
 };
 
+export function isTestnetCliChain(chain: string): boolean {
+  const c = chain.toUpperCase();
+  return (
+    c.includes("TESTNET") ||
+    c.includes("SEPOLIA") ||
+    c.includes("AMOY") ||
+    c.includes("FUJI")
+  );
+}
+
 export function cliChainFromNetwork(network?: string): string | null {
   if (!network) return null;
   const raw = network.trim();
@@ -76,8 +86,9 @@ export function pickPayChain(
   preferredCliChain?: string,
   funded?: FundedChain[],
   priceUsdc?: number,
+  environment?: "testnet" | "mainnet",
 ): { chain: string; gateway: boolean } | null {
-  const mapped = accepts
+  let mapped = accepts
     .map((entry) => {
       const chain = cliChainFromNetwork(entry.network);
       if (!chain) return null;
@@ -87,8 +98,19 @@ export function pickPayChain(
       Boolean(row),
     );
 
+  if (environment === "testnet") {
+    mapped = mapped.filter((row) => isTestnetCliChain(row.chain));
+  } else if (environment === "mainnet") {
+    mapped = mapped.filter((row) => !isTestnetCliChain(row.chain));
+  }
+
   if (mapped.length === 0) {
-    if (preferredCliChain && isAllowedCliChain(preferredCliChain)) {
+    if (
+      preferredCliChain &&
+      isAllowedCliChain(preferredCliChain) &&
+      (environment !== "testnet" || isTestnetCliChain(preferredCliChain)) &&
+      (environment !== "mainnet" || !isTestnetCliChain(preferredCliChain))
+    ) {
       return { chain: preferredCliChain.toUpperCase(), gateway: false };
     }
     return null;
@@ -175,6 +197,12 @@ export function classifyPayFailure(text: string): { hint: string; retryable: boo
     return {
       hint: "x402 payment header too large. Restart the server with NODE_OPTIONS=--max-http-header-size=262144.",
       retryable: true,
+    };
+  }
+  if (/not logged in|session expired|AUTH_REQUIRED/i.test(blob)) {
+    return {
+      hint: "This seller likely needs a mainnet session. You're on Arc Testnet — pick a service that accepts ARC-TESTNET, or use Demo Mode.",
+      retryable: false,
     };
   }
   return {

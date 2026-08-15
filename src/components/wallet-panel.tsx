@@ -9,11 +9,14 @@ import {
   ExternalLinkIcon,
   DropletsIcon,
   Loader2Icon,
+  LogOutIcon,
   RefreshCwIcon,
   WalletIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatTime, formatUsdc, truncateAddress } from "@/lib/format";
+import { CatalogEscape } from "@/components/catalog-escape";
+import { UsdcAmount } from "@/components/usdc-amount";
+import { formatTime, truncateAddress } from "@/lib/format";
 import { getNetwork } from "@/lib/networks";
 import type { ActivityEntry, LogLevel, NetworkId, WalletInfo } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -28,6 +31,7 @@ const LEVEL_CLASS: Record<LogLevel, string> = {
 };
 
 export function WalletPanel({
+  demoMode,
   network,
   wallet,
   balanceUsdc,
@@ -37,7 +41,10 @@ export function WalletPanel({
   onConnect,
   onFund,
   onRefresh,
+  onDisconnect,
   onClearActivity,
+  onDemo,
+  onNetwork,
 }: {
   demoMode: boolean;
   network: NetworkId;
@@ -51,7 +58,10 @@ export function WalletPanel({
   onConnect: () => void;
   onFund: () => void;
   onRefresh: () => void;
+  onDisconnect: () => void;
   onClearActivity: () => void;
+  onDemo: () => void;
+  onNetwork: (id: NetworkId) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
@@ -115,21 +125,21 @@ export function WalletPanel({
           </div>
         ) : (
           <>
-            <div className="relative mt-6 font-mono text-[13px] tracking-[0.18em] text-white/80">
-              {truncateAddress(wallet!.address, 8, 6)}
+            <div className="relative mt-6 flex items-center gap-2 font-mono text-[13px] tracking-[0.18em] text-white/80">
+              <span className="min-w-0 truncate">{truncateAddress(wallet!.address, 8, 6)}</span>
               <button
                 type="button"
                 onClick={copy}
-                className="ml-2 inline-flex align-middle text-white/45 hover:text-cyan"
-                aria-label="Copy"
+                className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/8 px-2 py-0.5 text-[10px] tracking-[0.12em] text-white/80 uppercase hover:border-cyan/40 hover:text-cyan"
               >
-                {copied ? <CheckIcon className="size-3.5 text-cyan" /> : <CopyIcon className="size-3.5" />}
+                {copied ? <CheckIcon className="size-3 text-cyan" /> : <CopyIcon className="size-3" />}
+                {copied ? "Copied" : "Copy"}
               </button>
               <a
                 href={net.explorerAddress(wallet!.address)}
                 target="_blank"
                 rel="noreferrer"
-                className="ml-1 inline-flex align-middle text-white/45 hover:text-cyan"
+                className="inline-flex text-white/45 hover:text-cyan"
                 aria-label="Explorer"
               >
                 <ExternalLinkIcon className="size-3.5" />
@@ -137,12 +147,10 @@ export function WalletPanel({
             </div>
             <div className="relative mt-5 flex items-end justify-between">
               <div>
-                <div className={cn("price text-4xl leading-none", empty ? "text-white/45" : "text-cyan")}>
-                  {formatUsdc(displayBalance, 2)}
-                </div>
+                <UsdcAmount amount={displayBalance} digits={2} size="xl" muted={empty} />
                 {empty ? (
                   <p className="mt-2 text-[11px] tracking-[0.14em] text-amber-200/80 uppercase">
-                    Empty · get testnet USDC
+                    {net.environment === "mainnet" ? "Empty · add USDC" : "Empty · get testnet USDC"}
                   </p>
                 ) : null}
               </div>
@@ -172,7 +180,11 @@ export function WalletPanel({
               )}
             >
               {funding ? <Loader2Icon className="animate-spin" /> : <DropletsIcon />}
-              {empty ? "Get testnet USDC" : "Fund"}
+              {empty
+                ? net.environment === "mainnet"
+                  ? "Add USDC"
+                  : "Get testnet USDC"
+                : "Fund"}
             </Button>
             <Button
               variant="outline"
@@ -182,6 +194,15 @@ export function WalletPanel({
               className="cursor-pointer"
             >
               <RefreshCwIcon />
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={onDisconnect}
+              className="cursor-pointer"
+            >
+              <LogOutIcon />
+              Disconnect
             </Button>
           </>
         )}
@@ -196,6 +217,12 @@ export function WalletPanel({
           Activity
         </Button>
       </div>
+
+      {!demoMode && !net.marketplaceLive ? (
+        <div className="glass w-full rounded-2xl p-4">
+          <CatalogEscape compact network={network} onDemo={onDemo} onNetwork={onNetwork} />
+        </div>
+      ) : null}
 
       {showActivity ? (
         <div className="glass flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl">

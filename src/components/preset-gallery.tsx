@@ -9,7 +9,7 @@ import {
   TrendingUpIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatUsdPrice } from "@/lib/format";
+import { UsdcAmount } from "@/components/usdc-amount";
 import type { PresetCard } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +59,7 @@ export function PresetGallery({
               <h3 className="truncate text-sm font-medium tracking-tight">
                 {preset.title}
               </h3>
-              <span className="price text-sm">{formatUsdPrice(preset.estimatedUsdc)}</span>
+              <UsdcAmount amount={preset.estimatedUsdc} size="sm" />
             </div>
             <Button
               size="icon"

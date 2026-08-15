@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { CodeBlock } from "@/components/code-block";
 import {
   cheapestAcceptance,
-  formatUsdPrice,
   serviceName,
   usdcFromAcceptance,
 } from "@/lib/format";
+import { UsdcAmount } from "@/components/usdc-amount";
 import type { PayResult, ServiceListing } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export function PaymentPanel({
           Pay
         </div>
         {listedPrice != null ? (
-          <span className="price text-3xl">{formatUsdPrice(listedPrice)}</span>
+          <UsdcAmount amount={listedPrice} size="lg" />
         ) : null}
       </div>
 

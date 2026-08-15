@@ -82,8 +82,9 @@ Then run a preset: **Crypto Prices**, **Live Search**, **Social Pulse**, or **Ma
 
 | Selector | CLI `--chain` | Discovery | Funding |
 | --- | --- | --- | --- |
-| Arc Testnet (default) | `ARC-TESTNET` | `arc-testnet` | Circle faucet |
-| Base | `BASE` | `base` | Mainnet — instructions only |
+| Demo (default) | — | fixtures | Mock USDC |
+| Arc Testnet | `ARC-TESTNET` | `arc-testnet` | Circle faucet |
+| Base Mainnet | `BASE` | `base` | Send USDC to the Agent Wallet |
 
 Two USDC pools: on-chain (`circle wallet balance`) for vanilla x402, Gateway (`circle gateway balance`) for nanopayments. Eco Gateway deposits land on **Polygon** → pay with `--chain MATIC`. Do not deposit 100% of vanilla USDC.
 

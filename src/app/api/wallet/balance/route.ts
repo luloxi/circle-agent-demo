@@ -23,6 +23,8 @@ export async function GET(request: Request) {
       address: address || "0xA93d4E8c1B7f2a90C6eD4b8F0A12E9d5C3f2C1a4",
       chain: network.cliChain,
       balanceUsdc,
+      nativeSymbol: null,
+      nativeAmount: null,
     });
   }
 
@@ -66,6 +68,8 @@ export async function GET(request: Request) {
     address,
     chain: network.cliChain,
     balanceUsdc: parseBalanceUsdc(result.parsed, result.stdout),
+    nativeSymbol: null,
+    nativeAmount: null,
     raw: result.parsed ?? result.stdout,
   });
 }

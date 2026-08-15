@@ -3,6 +3,7 @@
  * Marketplace steps, attach cheaper/premium alternatives, and estimate USDC.
  */
 
+import { cliChainFromNetwork } from "@/lib/circle-chains";
 import { cheapestAcceptance, serviceName, usdcFromAcceptance } from "@/lib/format";
 import { MOCK_SERVICES } from "@/lib/mock-data";
 import type {
@@ -134,7 +135,36 @@ export function listingPrice(listing: ServiceListing): number {
   return usdcFromAcceptance(cheapestAcceptance(listing)) ?? 0.01;
 }
 
-function scoreListing(listing: ServiceListing, keywords: string[]): number {
+export function listingAcceptsChain(listing: ServiceListing, chain?: string): boolean {
+  if (!chain) return false;
+  const want = chain.toUpperCase();
+  return (listing.accepts ?? []).some((entry) => cliChainFromNetwork(entry.network) === want);
+}
+
+export function isMockMarketplaceHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "example-agents.dev" || host.endsWith(".example-agents.dev");
+  } catch {
+    return false;
+  }
+}
+
+/** Live plans must bind to real hosts that accept the selected CLI chain. */
+export function filterLiveCatalog(
+  catalog: ServiceListing[],
+  chain: string,
+): ServiceListing[] {
+  return catalog.filter(
+    (item) => !isMockMarketplaceHost(item.resource) && listingAcceptsChain(item, chain),
+  );
+}
+
+function scoreListing(
+  listing: ServiceListing,
+  keywords: string[],
+  preferredChain?: string,
+): number {
   const hay = [
     listing.resource,
     listing.metadata?.description,
@@ -150,39 +180,78 @@ function scoreListing(listing: ServiceListing, keywords: string[]): number {
   for (const kw of keywords) {
     if (hay.includes(kw.toLowerCase())) score += 2;
   }
+  if (listingAcceptsChain(listing, preferredChain)) score += 8;
   return score;
 }
 
-function pickListing(
+export function pickListing(
   catalog: ServiceListing[],
   role: PresetRole,
+  preferredChain?: string,
+  live = false,
 ): ServiceListing {
-  const ranked = [...catalog]
-    .map((item) => ({ item, score: scoreListing(item, role.keywords) }))
+  const eligible = catalog.filter((item) => {
+    if (preferredChain && !listingAcceptsChain(item, preferredChain)) return false;
+    if (live && isMockMarketplaceHost(item.resource)) return false;
+    return true;
+  });
+
+  const pool = eligible.length ? eligible : live && preferredChain ? [] : catalog;
+  const ranked = [...pool]
+    .map((item) => ({ item, score: scoreListing(item, role.keywords, preferredChain) }))
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || listingPrice(a.item) - listingPrice(b.item));
 
   if (ranked[0]) return ranked[0].item;
-  return FALLBACK_BY_URL.get(role.fallbackUrl) ?? MOCK_SERVICES[0];
+  if (pool[0]) return pool[0];
+
+  const fallback = FALLBACK_BY_URL.get(role.fallbackUrl);
+  const fallbackOk =
+    fallback &&
+    (!live || !isMockMarketplaceHost(fallback.resource)) &&
+    (!preferredChain || listingAcceptsChain(fallback, preferredChain));
+  if (fallbackOk) return fallback;
+
+  return (
+    MOCK_SERVICES.find(
+      (item) =>
+        (!live || !isMockMarketplaceHost(item.resource)) &&
+        (!preferredChain || listingAcceptsChain(item, preferredChain)),
+    ) ?? MOCK_SERVICES[0]
+  );
 }
 
 function alternativesFor(
   listing: ServiceListing,
   catalog: ServiceListing[],
   role: PresetRole,
+  preferredChain?: string,
+  live = false,
 ): FlowStepAlternative[] {
   const sameIntent = catalog
-    .filter((item) => item.resource !== listing.resource)
-    .map((item) => ({ item, score: scoreListing(item, role.keywords) }))
+    .filter((item) => {
+      if (item.resource === listing.resource) return false;
+      if (preferredChain && !listingAcceptsChain(item, preferredChain)) return false;
+      if (live && isMockMarketplaceHost(item.resource)) return false;
+      return true;
+    })
+    .map((item) => ({ item, score: scoreListing(item, role.keywords, preferredChain) }))
     .filter((row) => row.score > 0)
     .sort((a, b) => listingPrice(a.item) - listingPrice(b.item));
 
   const cheaper = sameIntent[0]?.item;
-  const premium =
+  const premiumCandidate =
     sameIntent
       .slice()
-      .sort((a, b) => listingPrice(b.item) - listingPrice(a.item))[0]?.item ??
-    FALLBACK_BY_URL.get("https://api.aisa.one/apis/v2/perplexity/sonar-pro");
+      .sort((a, b) => listingPrice(b.item) - listingPrice(a.item))[0]?.item;
+  const sonarPro = FALLBACK_BY_URL.get("https://api.aisa.one/apis/v2/perplexity/sonar-pro");
+  const premium =
+    premiumCandidate ??
+    (sonarPro &&
+    (!live || !isMockMarketplaceHost(sonarPro.resource)) &&
+    (!preferredChain || listingAcceptsChain(sonarPro, preferredChain))
+      ? sonarPro
+      : undefined);
 
   const out: FlowStepAlternative[] = [];
   if (cheaper && listingPrice(cheaper) < listingPrice(listing)) {
@@ -206,8 +275,14 @@ function alternativesFor(
   return out.slice(0, 2);
 }
 
-function makeStep(role: PresetRole, catalog: ServiceListing[], index: number): FlowStep {
-  const listing = pickListing(catalog, role);
+function makeStep(
+  role: PresetRole,
+  catalog: ServiceListing[],
+  index: number,
+  preferredChain?: string,
+  live = false,
+): FlowStep {
+  const listing = pickListing(catalog, role, preferredChain, live);
   return {
     id: `step-${index}-${role.role}`,
     title: role.title,
@@ -217,7 +292,7 @@ function makeStep(role: PresetRole, catalog: ServiceListing[], index: number): F
     priceUsdc: listingPrice(listing),
     quality: "standard",
     status: "pending",
-    alternatives: alternativesFor(listing, catalog, role),
+    alternatives: alternativesFor(listing, catalog, role, preferredChain, live),
   };
 }
 
@@ -230,10 +305,32 @@ function planFromRoles(
     roles: PresetRole[];
     catalog: ServiceListing[];
     note?: string;
+    preferredChain?: string;
+    live?: boolean;
   },
 ): QueryPlan {
-  const catalog = opts.catalog.length ? opts.catalog : MOCK_SERVICES;
-  const steps = opts.roles.map((role, i) => makeStep(role, catalog, i));
+  let catalog = opts.catalog;
+  if (opts.live && opts.preferredChain) {
+    catalog = filterLiveCatalog(opts.catalog, opts.preferredChain);
+    if (catalog.length === 0) {
+      return {
+        id: `plan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        title: opts.title,
+        prompt: opts.prompt,
+        source: opts.source,
+        presetId: opts.presetId,
+        steps: [],
+        estimatedTotal: 0,
+        spentTotal: 0,
+        note: opts.note,
+      };
+    }
+  } else if (!catalog.length) {
+    catalog = MOCK_SERVICES;
+  }
+  const steps = opts.roles.map((role, i) =>
+    makeStep(role, catalog, i, opts.preferredChain, opts.live),
+  );
   return {
     id: `plan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     title: opts.title,
@@ -272,6 +369,8 @@ export function presetCards(catalog: ServiceListing[] = MOCK_SERVICES): PresetCa
 export function decomposePreset(
   presetId: string,
   catalog: ServiceListing[],
+  preferredChain?: string,
+  live = false,
 ): QueryPlan | null {
   const preset = PRESETS.find((p) => p.id === presetId);
   if (!preset) return null;
@@ -282,7 +381,61 @@ export function decomposePreset(
     presetId: preset.id,
     roles: preset.roles,
     catalog,
+    preferredChain,
+    live,
   });
+}
+
+export function liveCatalogNote(network: {
+  label: string;
+  caip2: string;
+  marketplaceLive: boolean;
+}): string {
+  if (network.marketplaceLive) {
+    return `Discovery returned no payable x402 sellers on ${network.label} (${network.caip2}) for this query.`;
+  }
+  return `Discovery has no x402 sellers on ${network.label} (${network.caip2}). The public catalog is mainnet-only right now. Use Demo Mode to walk the flow, or switch to a network with a live catalog.`;
+}
+
+export function emptyLivePlan(
+  chain: string,
+  prompt: string,
+  networkLabel: string,
+  note: string,
+): QueryPlan {
+  return {
+    id: `plan-empty-${chain}`,
+    title: `No ${networkLabel} sellers`,
+    prompt,
+    source: "composer",
+    steps: [],
+    estimatedTotal: 0,
+    spentTotal: 0,
+    note,
+  };
+}
+
+export function decomposeLive(opts: {
+  prompt?: string;
+  presetId?: string;
+  catalog: ServiceListing[];
+  chain: string;
+  network: { label: string; shortLabel: string; caip2: string; marketplaceLive: boolean };
+}): QueryPlan | null {
+  const prompt = (opts.prompt ?? "").trim() || opts.presetId || "";
+  const catalog = filterLiveCatalog(opts.catalog, opts.chain);
+  if (catalog.length === 0) {
+    return emptyLivePlan(
+      opts.chain,
+      prompt,
+      opts.network.shortLabel,
+      liveCatalogNote(opts.network),
+    );
+  }
+  if (opts.presetId) {
+    return decomposePreset(opts.presetId, catalog, opts.chain, true);
+  }
+  return decomposePrompt(opts.prompt ?? "", catalog, opts.chain, true);
 }
 
 interface IntentTemplate {
@@ -350,7 +503,12 @@ const DEFAULT_ROLES: PresetRole[] = [
   },
 ];
 
-export function decomposePrompt(prompt: string, catalog: ServiceListing[]): QueryPlan {
+export function decomposePrompt(
+  prompt: string,
+  catalog: ServiceListing[],
+  preferredChain?: string,
+  live = false,
+): QueryPlan {
   const text = prompt.trim();
   const match = INTENTS.find((intent) => intent.test(text));
   return planFromRoles({
@@ -360,6 +518,8 @@ export function decomposePrompt(prompt: string, catalog: ServiceListing[]): Quer
     presetId: match?.id,
     roles: match?.roles ?? DEFAULT_ROLES,
     catalog,
+    preferredChain,
+    live,
     note: match
       ? `Matched intent “${match.title}”.`
       : "No preset intent — defaulted to search + synthesize.",

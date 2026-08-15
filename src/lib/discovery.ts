@@ -79,11 +79,11 @@ export async function searchDiscovery(
  * so the UI still has something to show on a live demo.
  */
 export async function searchServicesSafe(
-  params: SearchParams,
+  params: SearchParams & { allowUnfiltered?: boolean },
 ): Promise<{ data: DiscoveryResponse; source: "discovery" | "mock"; note?: string }> {
   try {
     const first = await searchDiscovery(params);
-    if (first.items.length === 0 && params.network) {
+    if (first.items.length === 0 && params.network && params.allowUnfiltered !== false) {
       const retry = await searchDiscovery({
         query: params.query,
         category: params.category,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { formatUsdPrice, formatUsdc } from "@/lib/format";
+import { UsdcAmount } from "@/components/usdc-amount";
 import type { QueryHistoryItem, QueryPlan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -45,15 +45,11 @@ export function CostExplorer({
         </label>
       </div>
 
-      <div
-        className={cn(
-          "mt-1 font-mono text-4xl leading-none tracking-tight",
-          over ? "text-amber-300" : "text-cyan",
-        )}
-      >
-        {formatUsdPrice(shown)}
-      </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">USDC</div>
+      <UsdcAmount
+        amount={shown}
+        size="xl"
+        className={cn("mt-1", over ? "text-amber-300" : undefined)}
+      />
 
       <div className="mt-6 flex-1">
         {plan && plan.steps.length > 0 ? (
@@ -64,9 +60,7 @@ export function CostExplorer({
                   <StatusDot status={step.status} />
                   <span className="truncate text-sm">{step.title}</span>
                 </span>
-                <span className="price text-sm">
-                  {formatUsdPrice(step.paidUsdc ?? step.priceUsdc)}
-                </span>
+                <UsdcAmount amount={step.paidUsdc ?? step.priceUsdc} size="sm" />
               </li>
             ))}
           </ul>
@@ -78,7 +72,10 @@ export function CostExplorer({
       </div>
 
       <div className="mt-5 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>Session {formatUsdc(sessionSpent, 3)}</span>
+        <span className="inline-flex items-center gap-1">
+          Session
+          <UsdcAmount amount={sessionSpent} digits={3} size="xs" />
+        </span>
         <span className={over ? "text-amber-300" : "text-cyan/80"}>
           {over ? "Over cap" : "In cap"}
         </span>
@@ -94,9 +91,11 @@ export function CostExplorer({
                 className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
               >
                 <span className="min-w-0 truncate">{item.title}</span>
-                <span className={cn("font-mono", item.ok ? "text-cyan" : "text-destructive")}>
-                  {formatUsdPrice(item.spentUsdc)}
-                </span>
+                <UsdcAmount
+                  amount={item.spentUsdc}
+                  size="xs"
+                  className={item.ok ? undefined : "text-destructive"}
+                />
               </button>
             </li>
           ))}

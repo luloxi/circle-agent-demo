@@ -2,6 +2,7 @@ import {
   classifyPayFailure,
   cliChainFromNetwork,
   fundsMayHaveMoved,
+  isTestnetCliChain,
   parseAcceptedChainsHint,
   pickPayChain,
   type FundedChain,
@@ -130,8 +131,52 @@ export async function POST(request: Request) {
   );
   const advertised = advertisedUsdc(inspectData, accepts);
   const funded = await readFundedPools(address, accepts, network.cliChain);
-  const picked = pickPayChain(accepts, network.cliChain, funded, advertised ?? maxAmount);
+  const picked = pickPayChain(
+    accepts,
+    network.cliChain,
+    funded,
+    advertised ?? maxAmount,
+    network.environment,
+  );
+  if (!picked && network.environment === "testnet") {
+    return Response.json(
+      {
+        ok: false,
+        demo: false,
+        url,
+        chain: network.cliChain,
+        address,
+        amountUsdc: advertised ?? maxAmount,
+        status: 409,
+        paid: false,
+        method,
+        response: null,
+        error: "This service does not accept Arc Testnet.",
+        hint: "It wants a mainnet chain (often Ethereum Gateway). Stay on Demo, or pick a listing that accepts ARC-TESTNET.",
+      },
+      { status: 409 },
+    );
+  }
   let chain = picked?.chain ?? network.cliChain;
+  if (network.environment === "testnet" && !isTestnetCliChain(chain)) {
+    return Response.json(
+      {
+        ok: false,
+        demo: false,
+        url,
+        chain,
+        address,
+        amountUsdc: advertised ?? maxAmount,
+        status: 409,
+        paid: false,
+        method,
+        response: null,
+        error: `Refusing to pay on ${chain} while you are on Arc Testnet.`,
+        hint: "A testnet login cannot sign mainnet x402. Choose an Arc Testnet service or Demo Mode.",
+      },
+      { status: 409 },
+    );
+  }
   if (!isAllowedCliChain(chain)) {
     return Response.json(
       {
@@ -175,7 +220,11 @@ export async function POST(request: Request) {
   const estimate = await runCircle([...baseArgs, "--estimate"], { timeoutMs: 25_000 });
   if (!estimate.ok) {
     const hintChain = parseAcceptedChainsHint(`${estimate.stderr}\n${estimate.stdout}`);
-    if (hintChain && hintChain !== chain) {
+    if (
+      hintChain &&
+      hintChain !== chain &&
+      !(network.environment === "testnet" && !isTestnetCliChain(hintChain))
+    ) {
       chain = hintChain;
       const retried = await runCircle(
         swapChain(baseArgs, chain).concat("--estimate"),
@@ -286,7 +335,13 @@ export async function POST(request: Request) {
     const moved = fundsMayHaveMoved(combined);
     const classified = classifyPayFailure(combined);
     const hintChain = parseAcceptedChainsHint(combined);
-    if (classified.retryable && hintChain && hintChain !== chain && !moved) {
+    if (
+      classified.retryable &&
+      hintChain &&
+      hintChain !== chain &&
+      !moved &&
+      !(network.environment === "testnet" && !isTestnetCliChain(hintChain))
+    ) {
       const retry = await runCircle(swapChain(payArgs, hintChain), { timeoutMs: 55_000 });
       if (retry.ok) {
         return Response.json({

@@ -1,4 +1,4 @@
-import { decomposePreset, decomposePrompt, presetCards } from "@/lib/composer";
+import { decomposeLive, decomposePreset, decomposePrompt, presetCards } from "@/lib/composer";
 import { searchServicesSafe } from "@/lib/discovery";
 import { MOCK_SERVICES, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
@@ -34,17 +34,33 @@ export async function POST(request: Request) {
       query: prompt || presetId || "research",
       network: network.discoveryNetwork,
       limit: 40,
+      allowUnfiltered: false,
     });
-    catalog = [...live.data.items, ...MOCK_SERVICES];
+    catalog = live.data.items;
     source = live.source;
     note = live.note;
-  } else {
-    await sleep(380);
+    const plan = decomposeLive({
+      prompt,
+      presetId,
+      catalog,
+      chain: network.cliChain,
+      network,
+    });
+    if (!plan) {
+      return Response.json({ error: "Unknown preset." }, { status: 404 });
+    }
+    return Response.json({
+      plan: { ...plan, note: plan.note ?? note },
+      source,
+      presets: presetCards(catalog),
+    });
   }
 
+  await sleep(380);
+
   const plan = presetId
-    ? decomposePreset(presetId, catalog)
-    : decomposePrompt(prompt, catalog);
+    ? decomposePreset(presetId, catalog, network.cliChain)
+    : decomposePrompt(prompt, catalog, network.cliChain);
 
   if (!plan) {
     return Response.json({ error: "Unknown preset." }, { status: 404 });
