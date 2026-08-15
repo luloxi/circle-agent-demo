@@ -74,8 +74,7 @@ test("planEcoOnboard deposits BASE vanilla to pay MATIC when Gateway is empty", 
   assert.ok(plan);
   assert.equal(plan.depositChain, "BASE");
   assert.equal(plan.payChain, "MATIC");
-  assert.ok(plan.amount >= 0.25);
-  assert.ok(plan.amount <= 0.5);
+  assert.equal(plan.amount, 0.5);
 });
 
 test("planEcoOnboard is skipped when Gateway is already funded", () => {
@@ -88,7 +87,8 @@ test("planEcoOnboard is skipped when Gateway is already funded", () => {
   assert.equal(plan, null);
 });
 
-test("sizeEcoDeposit refuses to drain a tiny vanilla balance", () => {
+test("sizeEcoDeposit uses the 0.5 USDC Gateway minimum", () => {
   assert.equal(sizeEcoDeposit(0.08, 0.008), null);
-  assert.ok((sizeEcoDeposit(1, 0.008) ?? 0) <= 0.5);
+  assert.equal(sizeEcoDeposit(0.5, 0.008), null);
+  assert.equal(sizeEcoDeposit(1, 0.008), 0.5);
 });
