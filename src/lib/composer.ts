@@ -52,8 +52,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Context",
         intent: "What moved the tape today",
         role: "search",
-        keywords: ["search", "sonar"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/perplexity/sonar",
+        keywords: ["youtube", "search"],
+        fallbackUrl: "https://api.aisa.one/apis/v2/youtube/search",
       },
     ],
   },
@@ -69,8 +69,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Web search",
         intent: "Find current sources on agentic USDC payments",
         role: "search",
-        keywords: ["search", "sonar"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/perplexity/sonar",
+        keywords: ["youtube", "search"],
+        fallbackUrl: "https://api.aisa.one/apis/v2/youtube/search",
       },
       {
         title: "Digest",
@@ -92,8 +92,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Social search",
         intent: "Recent posts mentioning Circle USDC",
         role: "social",
-        keywords: ["twitter", "social", "posts", "x.com"],
-        fallbackUrl: "https://api.example-agents.dev/v1/social/search",
+        keywords: ["twitter", "tweet", "social", "posts"],
+        fallbackUrl: "https://api.aisa.one/apis/v2/twitter/tweet/advanced_search",
       },
       {
         title: "Digest",
@@ -115,8 +115,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Odds",
         intent: "Live prediction-market contracts on the next Fed decision",
         role: "odds",
-        keywords: ["prediction", "polymarket", "kalshi", "odds"],
-        fallbackUrl: "https://api.example-agents.dev/v1/prediction/odds",
+        keywords: ["polymarket", "prediction", "odds"],
+        fallbackUrl: "https://api.aisa.one/apis/v2/polymarket/events",
       },
       {
         title: "Digest",
@@ -130,6 +130,20 @@ export const PRESETS: PresetDefinition[] = [
 ];
 
 const FALLBACK_BY_URL = new Map(MOCK_SERVICES.map((s) => [s.resource, s]));
+
+const DISCOVERY_QUERY_BY_PRESET: Record<string, string> = {
+  prices: "coingecko simple price",
+  search: "youtube search",
+  social: "twitter advanced_search",
+  odds: "polymarket events",
+};
+
+export function discoveryQueryFor(presetId?: string, prompt?: string): string {
+  if (presetId && DISCOVERY_QUERY_BY_PRESET[presetId]) {
+    return DISCOVERY_QUERY_BY_PRESET[presetId];
+  }
+  return (prompt ?? "").trim() || "research";
+}
 
 export function listingPrice(listing: ServiceListing): number {
   return usdcFromAcceptance(cheapestAcceptance(listing)) ?? 0.01;
@@ -145,49 +159,79 @@ export function isTemplatedResource(url: string): boolean {
   return /\{[^}/]+\}|%7B[^%]+%7D/i.test(url);
 }
 
-/** Fill the seller's required query/body so live pay matches the 402 resource. */
+function withQuery(url: string, params: Record<string, string>): string {
+  const parsed = new URL(url);
+  for (const [key, value] of Object.entries(params)) {
+    if (!parsed.searchParams.get(key)) parsed.searchParams.set(key, value);
+  }
+  return parsed.toString();
+}
+
+function queryFromPrompt(prompt: string, fallback: string): string {
+  const text = prompt.trim();
+  return (text.length >= 3 ? text : fallback).slice(0, 120);
+}
+
+/**
+ * Live x402 binds the signature to the exact resource URL (including query).
+ * AIsa POST/Sonar rejects the signed Gateway payment (payment_requirements_mismatch).
+ * Run therefore uses GET listings with the required query string filled in.
+ */
 export function resolvePayRequest(
   listing: ServiceListing,
   opts?: { role?: string; prompt?: string },
 ): { url: string; method: string; data?: string } {
-  const prompt = (opts?.prompt ?? "").trim() || "Bitcoin and Ethereum spot price";
+  const prompt = (opts?.prompt ?? "").trim();
   const role = opts?.role ?? "";
-  let url = listing.resource;
-  const listedMethod = (listing.metadata?.method ?? "GET").toUpperCase();
+  const url = listing.resource;
 
-  if (/\/coingecko\/simple\/price/i.test(url)) {
-    const parsed = new URL(url);
-    if (!parsed.searchParams.get("ids")) parsed.searchParams.set("ids", "bitcoin,ethereum");
-    if (!parsed.searchParams.get("vs_currencies")) {
-      parsed.searchParams.set("vs_currencies", "usd");
-    }
-    return { url: parsed.toString(), method: "GET" };
-  }
-
-  url = url
-    .replace(/%7Bid%7D/gi, "bitcoin")
-    .replace(/\{id\}/gi, "bitcoin")
-    .replace(/%7Bcontract_address%7D/gi, "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
-    .replace(/\{contract_address\}/gi, "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
-
-  if (/perplexity|sonar/i.test(url) || role === "search") {
-    if (role === "search") {
-      url = url.replace(/\/perplexity\/sonar[-a-z]*$/i, "/perplexity/sonar");
-    }
-    const modelMatch = url.match(/\/perplexity\/(sonar(?:-[a-z]+)*)$/i);
-    const model = modelMatch?.[1] ?? "sonar";
+  if (/\/coingecko\/simple\/price/i.test(url) || role === "prices") {
+    const target = /\/coingecko\/simple\/price/i.test(url)
+      ? url
+      : "https://api.aisa.one/apis/v2/coingecko/simple/price";
     return {
-      url,
-      method: "POST",
-      data: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt.slice(0, 400) }],
-        stream: false,
-      }),
+      url: withQuery(target, { ids: "bitcoin,ethereum", vs_currencies: "usd" }),
+      method: "GET",
     };
   }
 
-  return { url, method: listedMethod };
+  if (/\/youtube\/search/i.test(url) || role === "search") {
+    const target = /\/youtube\/search/i.test(url)
+      ? url
+      : "https://api.aisa.one/apis/v2/youtube/search";
+    return {
+      url: withQuery(target, {
+        engine: "youtube",
+        q: queryFromPrompt(prompt, "USDC AI agents"),
+      }),
+      method: "GET",
+    };
+  }
+
+  if (/\/twitter\/tweet\/advanced_search/i.test(url) || role === "social") {
+    const target = /\/twitter\/tweet\/advanced_search/i.test(url)
+      ? url
+      : "https://api.aisa.one/apis/v2/twitter/tweet/advanced_search";
+    return {
+      url: withQuery(target, {
+        query: queryFromPrompt(prompt, "Circle USDC"),
+        queryType: "Latest",
+      }),
+      method: "GET",
+    };
+  }
+
+  if (/\/polymarket\/events/i.test(url) || role === "odds") {
+    const target = /\/polymarket\/events/i.test(url)
+      ? url
+      : "https://api.aisa.one/apis/v2/polymarket/events";
+    return {
+      url: withQuery(target, { limit: "8", status: "open" }),
+      method: "GET",
+    };
+  }
+
+  return { url, method: (listing.metadata?.method ?? "GET").toUpperCase() };
 }
 
 export function isMockMarketplaceHost(url: string): boolean {
@@ -232,9 +276,12 @@ function scoreListing(
   }
   if (listingAcceptsChain(listing, preferredChain)) score += 8;
   if (live && isTemplatedResource(listing.resource)) score -= 12;
-  if (live && /\/coingecko\/simple\/price(?:\?|$)/i.test(listing.resource)) score += 6;
-  if (live && /\/perplexity\/sonar$/i.test(listing.resource)) score += 6;
-  if (live && /sonar-deep-research|sonar-reasoning/i.test(listing.resource)) score -= 10;
+  if (live && (listing.metadata?.method ?? "GET").toUpperCase() === "GET") score += 4;
+  if (live && /\/coingecko\/simple\/price/i.test(listing.resource)) score += 8;
+  if (live && /\/youtube\/search/i.test(listing.resource)) score += 8;
+  if (live && /\/twitter\/tweet\/advanced_search/i.test(listing.resource)) score += 8;
+  if (live && /\/polymarket\/events/i.test(listing.resource)) score += 8;
+  if (live && /perplexity|sonar/i.test(listing.resource)) score -= 16;
   return score;
 }
 
@@ -382,7 +429,10 @@ function planFromRoles(
   } else if (!catalog.length) {
     catalog = MOCK_SERVICES;
   }
-  const steps = opts.roles.map((role, i) =>
+  // Live AIsa POST (Sonar) signs then 402s with payment_requirements_mismatch.
+  // One GET hop per preset is the payable booth path.
+  const roles = opts.live ? opts.roles.filter((role) => role.role !== "summarize").slice(0, 1) : opts.roles;
+  const steps = roles.map((role, i) =>
     makeStep(role, catalog, i, opts.preferredChain, opts.live),
   );
   return {

@@ -125,43 +125,43 @@ test("resolvePayRequest adds CoinGecko ids and vs_currencies", () => {
   assert.match(req.url, /vs_currencies=usd/);
 });
 
-test("resolvePayRequest maps Sonar search onto /sonar with matching model", () => {
-  const deep = listing(
-    "https://api.aisa.one/apis/v2/perplexity/sonar-deep-research",
+test("resolvePayRequest uses GET YouTube search with engine+q", () => {
+  const yt = listing(
+    "https://api.aisa.one/apis/v2/youtube/search",
     ["eip155:8453"],
-    { name: "Sonar Deep", tags: ["search", "sonar"] },
+    { name: "YouTube", tags: ["youtube", "search"] },
   );
-  const req = resolvePayRequest(deep, {
+  const req = resolvePayRequest(yt, {
     role: "search",
     prompt: "latest USDC agent payments",
   });
-  assert.equal(req.method, "POST");
-  assert.match(req.url, /\/perplexity\/sonar$/);
-  const body = JSON.parse(req.data ?? "{}");
-  assert.equal(body.model, "sonar");
-  assert.equal(body.messages[0].content.includes("USDC"), true);
+  assert.equal(req.method, "GET");
+  assert.match(req.url, /\/youtube\/search/);
+  assert.match(req.url, /engine=youtube/);
+  assert.match(req.url, /q=latest/);
+  assert.equal(req.data, undefined);
 });
 
-test("pickListing live prefers /sonar over sonar-deep-research", () => {
-  const deep = listing(
-    "https://api.aisa.one/apis/v2/perplexity/sonar-deep-research",
-    ["eip155:8453"],
-    { name: "Deep", tags: ["search", "sonar", "research"] },
-  );
+test("pickListing live prefers YouTube GET over Sonar POST", () => {
   const sonar = listing(
     "https://api.aisa.one/apis/v2/perplexity/sonar",
     ["eip155:8453"],
     { name: "Sonar", tags: ["search", "sonar"] },
   );
+  const yt = listing(
+    "https://api.aisa.one/apis/v2/youtube/search",
+    ["eip155:8453"],
+    { name: "YouTube", tags: ["youtube", "search"] },
+  );
   const role: PresetRole = {
     title: "Web search",
     intent: "search",
     role: "search",
-    keywords: ["search", "sonar"],
-    fallbackUrl: sonar.resource,
+    keywords: ["youtube", "search"],
+    fallbackUrl: yt.resource,
   };
-  const picked = pickListing([deep, sonar], role, "BASE", true);
-  assert.equal(picked.resource, sonar.resource);
+  const picked = pickListing([sonar, yt], role, "BASE", true);
+  assert.equal(picked.resource, yt.resource);
 });
 
 test("searchRequestForMode passes the next chain, not the leftover demo network", () => {

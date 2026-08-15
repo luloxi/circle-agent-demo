@@ -253,44 +253,12 @@ export async function POST(request: Request) {
     "60",
   ];
   if (data) {
-    baseArgs.push("--data", data, "-H", "Content-Type: application/json");
+    baseArgs.push("--data", data);
   }
 
-  const estimate = await runCircle([...baseArgs, "--estimate"], { timeoutMs: 25_000 });
-  if (!estimate.ok) {
-    const hintChain = parseAcceptedChainsHint(`${estimate.stderr}\n${estimate.stdout}`);
-    if (
-      hintChain &&
-      hintChain !== chain &&
-      !(network.environment === "testnet" && !isTestnetCliChain(hintChain))
-    ) {
-      chain = hintChain;
-      const retried = await runCircle(
-        swapChain(baseArgs, chain).concat("--estimate"),
-        { timeoutMs: 25_000 },
-      );
-      if (!retried.ok && !estimateOnly) {
-        const classified = classifyPayFailure(`${retried.stderr}\n${retried.stdout}`);
-        return Response.json(
-          {
-            ok: false,
-            demo: false,
-            url,
-            chain,
-            address,
-            amountUsdc: payCap,
-            status: retried.code ?? 502,
-            paid: false,
-            estimated: true,
-            method,
-            response: retried.parsed ?? retried.stdout,
-            error: retried.stderr || retried.stdout || "Estimate failed.",
-            hint: classified.hint,
-          },
-          { status: 502 },
-        );
-      }
-    } else {
+  if (estimateOnly) {
+    const estimate = await runCircle([...baseArgs, "--estimate"], { timeoutMs: 25_000 });
+    if (!estimate.ok) {
       const classified = classifyPayFailure(`${estimate.stderr}\n${estimate.stdout}`);
       return Response.json(
         {
@@ -311,9 +279,6 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-  }
-
-  if (estimateOnly) {
     return Response.json({
       ok: true,
       demo: false,

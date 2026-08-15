@@ -1,4 +1,10 @@
-import { decomposeLive, decomposePreset, decomposePrompt, presetCards } from "@/lib/composer";
+import {
+  decomposeLive,
+  decomposePreset,
+  decomposePrompt,
+  discoveryQueryFor,
+  presetCards,
+} from "@/lib/composer";
 import { searchServicesSafe } from "@/lib/discovery";
 import { MOCK_SERVICES, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
 
   if (!demo) {
     const live = await searchServicesSafe({
-      query: prompt || presetId || "research",
+      query: discoveryQueryFor(presetId, prompt),
       network: network.discoveryNetwork,
       limit: 40,
       allowUnfiltered: false,
