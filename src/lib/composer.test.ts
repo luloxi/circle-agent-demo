@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  assemblePlan,
   decomposePreset,
+  excerptFromResult,
   filterLiveCatalog,
   isMockMarketplaceHost,
   listingAcceptsChain,
@@ -173,4 +175,65 @@ test("searchRequestForMode passes the next chain, not the leftover demo network"
     demo: true,
     chain: "ARC-TESTNET",
   });
+});
+
+const ALLIUM_ITEMS = {
+  items: [
+    {
+      timestamp: "2026-08-15T22:03:43Z",
+      chain: "ethereum",
+      address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+      decimals: 8,
+      price: 117432.18,
+      open: 115800,
+      close: 117432.18,
+    },
+    {
+      timestamp: "2026-08-15T22:03:43Z",
+      chain: "ethereum",
+      address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      decimals: 18,
+      price: 4512.4,
+      open: 4480,
+      close: 4512.4,
+    },
+  ],
+};
+
+test("assemblePlan uses Allium items, never the $111,240 fixture", () => {
+  const plan = decomposePreset("prices", MOCK_SERVICES);
+  assert.ok(plan);
+  plan.steps[0] = {
+    ...plan.steps[0],
+    status: "completed",
+    result: ALLIUM_ITEMS,
+    excerpt: excerptFromResult(ALLIUM_ITEMS),
+  };
+  const assembled = assemblePlan(plan);
+  assert.match(assembled.headline, /BTC \$117,432/);
+  assert.match(assembled.headline, /ETH \$4,512/);
+  assert.doesNotMatch(assembled.headline, /111,240/);
+  assert.doesNotMatch(assembled.summary, /Both majors are green/);
+});
+
+test("assemblePlan unwraps Circle CLI { data: { response } } envelope", () => {
+  const plan = decomposePreset("prices", MOCK_SERVICES);
+  assert.ok(plan);
+  plan.steps[0] = {
+    ...plan.steps[0],
+    status: "completed",
+    result: { data: { response: ALLIUM_ITEMS, payment: { amount: "$0.02 USDC" } } },
+  };
+  const assembled = assemblePlan(plan);
+  assert.match(assembled.headline, /BTC \$117,432/);
+  assert.equal(excerptFromResult(plan.steps[0].result), assembled.headline);
+});
+
+test("assemblePlan after a failed pay does not invent spot prices", () => {
+  const plan = decomposePreset("prices", MOCK_SERVICES);
+  assert.ok(plan);
+  plan.steps[0] = { ...plan.steps[0], status: "error", error: "422 schema" };
+  const assembled = assemblePlan(plan);
+  assert.doesNotMatch(assembled.headline, /111,240/);
+  assert.match(assembled.summary, /mock quote/i);
 });

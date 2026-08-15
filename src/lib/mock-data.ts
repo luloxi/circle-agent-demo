@@ -575,13 +575,43 @@ export function mockServicePayload(
     };
   }
 
+  if (url.includes("allium") || url.includes("developer/prices")) {
+    const now = new Date().toISOString();
+    return {
+      items: [
+        {
+          timestamp: now,
+          chain: "ethereum",
+          address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+          decimals: 8,
+          price: 111240,
+          open: 109270,
+          high: 112010,
+          close: 111240,
+          low: 108880,
+        },
+        {
+          timestamp: now,
+          chain: "ethereum",
+          address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+          decimals: 18,
+          price: 4218,
+          open: 4119,
+          high: 4250,
+          close: 4218,
+          low: 4095,
+        },
+      ],
+      receipt,
+    };
+  }
+
   if (url.includes("prices") || url.includes("coingecko")) {
     return {
       service: "Spot prices",
       quotes: [
-        { id: "ethereum", symbol: "ETH", usd: 3241.18, change24h: 1.24 },
-        { id: "usd-coin", symbol: "USDC", usd: 1.0, change24h: 0.0 },
-        { id: "solana", symbol: "SOL", usd: 148.62, change24h: -0.83 },
+        { id: "bitcoin", symbol: "BTC", usd: 111240, change24h: 1.8 },
+        { id: "ethereum", symbol: "ETH", usd: 4218, change24h: 2.4 },
       ],
       asOf: new Date().toISOString(),
       receipt,
@@ -715,6 +745,29 @@ export function mockServicePayload(
         { title: "Hike", yes: 0.05, venue: "primary" },
       ],
       asOf: new Date().toISOString(),
+      receipt,
+    };
+  }
+
+  if (url.includes("exa.ai")) {
+    return {
+      results: [
+        {
+          title: "Agents are paying APIs in USDC",
+          url: "https://developers.circle.com/agent-stack",
+          text: "An agent hits 402, settles a nanopayment, and gets the data. No key, no seat, no invoice.",
+        },
+        {
+          title: "x402 + Circle Agent Wallet",
+          url: "https://developers.circle.com/x402",
+          text: "Discovery is public. Inspect, then pay — never pay blind.",
+        },
+        {
+          title: "Gateway batches make sub-cent calls viable",
+          url: "https://developers.circle.com/stablecoins/circle-gateway",
+          text: "Builders post receipts, not whitepapers.",
+        },
+      ],
       receipt,
     };
   }

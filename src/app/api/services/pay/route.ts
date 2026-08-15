@@ -9,6 +9,7 @@ import {
   type FundedChain,
 } from "@/lib/circle-chains";
 import { parseBalanceUsdc, parseMaybeJson, runCircle } from "@/lib/circle-cli";
+import { chargedUsdcFromPayOutput, sellerBodyFromPayOutput } from "@/lib/pay-result";
 import {
   isAllowedCliChain,
   isSafeHttpUrl,
@@ -313,19 +314,7 @@ export async function POST(request: Request) {
       );
       const afterDeploy = await runCircle(payArgs, { timeoutMs: 55_000 });
       if (afterDeploy.ok) {
-        return Response.json({
-          ok: true,
-          demo: false,
-          url,
-          chain,
-          address,
-          amountUsdc: payCap,
-          status: 200,
-          paid: true,
-          method,
-          response:
-            afterDeploy.parsed ?? parseMaybeJson(afterDeploy.stdout) ?? afterDeploy.stdout,
-        });
+        return Response.json(paidSuccess(afterDeploy, { url, chain, address, method, advertised, payCap }));
       }
     }
 
@@ -341,18 +330,9 @@ export async function POST(request: Request) {
     ) {
       const retry = await runCircle(swapChain(payArgs, hintChain), { timeoutMs: 55_000 });
       if (retry.ok) {
-        return Response.json({
-          ok: true,
-          demo: false,
-          url,
-          chain: hintChain,
-          address,
-          amountUsdc: payCap,
-          status: 200,
-          paid: true,
-          method,
-          response: retry.parsed ?? parseMaybeJson(retry.stdout) ?? retry.stdout,
-        });
+        return Response.json(
+          paidSuccess(retry, { url, chain: hintChain, address, method, advertised, payCap }),
+        );
       }
       const retryText = `${retry.stderr}\n${retry.stdout}`;
       const retryClass = classifyPayFailure(retryText);
@@ -396,18 +376,33 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json({
+  return Response.json(paidSuccess(result, { url, chain, address, method, advertised, payCap }));
+}
+
+function paidSuccess(
+  run: { parsed: unknown; stdout: string },
+  meta: {
+    url: string;
+    chain: string;
+    address: string;
+    method: string;
+    advertised: number | null;
+    payCap: number;
+  },
+) {
+  const parsed = run.parsed ?? parseMaybeJson(run.stdout) ?? run.stdout;
+  return {
     ok: true,
     demo: false,
-    url,
-    chain,
-    address,
-    amountUsdc: payCap,
+    url: meta.url,
+    chain: meta.chain,
+    address: meta.address,
+    amountUsdc: chargedUsdcFromPayOutput(parsed) ?? meta.advertised ?? meta.payCap,
     status: 200,
     paid: true,
-    method,
-    response: result.parsed ?? parseMaybeJson(result.stdout) ?? result.stdout,
-  });
+    method: meta.method,
+    response: sellerBodyFromPayOutput(parsed) ?? parsed,
+  };
 }
 
 function unwrapRecord(parsed: unknown): Record<string, unknown> | null {

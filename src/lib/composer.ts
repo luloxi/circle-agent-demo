@@ -6,6 +6,12 @@
 import { cliChainFromNetwork } from "@/lib/circle-chains";
 import { cheapestAcceptance, serviceName, usdcFromAcceptance } from "@/lib/format";
 import { MOCK_SERVICES } from "@/lib/mock-data";
+import {
+  formatQuoteLine,
+  headlineFromQuotes,
+  quotesFromPayload,
+  searchHitsFromPayload,
+} from "@/lib/pay-result";
 import type {
   AssembledResult,
   FlowStep,
@@ -734,6 +740,15 @@ export function removeStep(plan: QueryPlan, stepId: string): QueryPlan {
 }
 
 export function excerptFromResult(result: unknown): string {
+  const quotes = quotesFromPayload(result);
+  if (quotes.length) return headlineFromQuotes(quotes);
+  const hits = searchHitsFromPayload(result);
+  if (hits.length) {
+    return hits
+      .slice(0, 2)
+      .map((hit) => hit.title)
+      .join(" · ");
+  }
   if (!result || typeof result !== "object") return String(result ?? "");
   const rec = result as Record<string, unknown>;
   if (typeof rec.digest === "string") return rec.digest;
@@ -748,134 +763,82 @@ export function excerptFromResult(result: unknown): string {
       .filter(Boolean)
       .join(" · ");
   }
-  if (Array.isArray(rec.quotes)) {
-    return rec.quotes
-      .slice(0, 3)
-      .map((q) =>
-        q && typeof q === "object" && "symbol" in q ? String((q as { symbol: string }).symbol) : "",
-      )
-      .filter(Boolean)
-      .join(" · ");
-  }
-  if (Array.isArray(rec.posts)) {
-    return rec.posts
-      .slice(0, 2)
-      .map((p) =>
-        p && typeof p === "object" && "text" in p ? String((p as { text: string }).text) : "",
-      )
-      .filter(Boolean)
-      .join(" · ");
-  }
-  if (Array.isArray(rec.markets)) {
-    return rec.markets
-      .slice(0, 2)
-      .map((m) =>
-        m && typeof m === "object" && "title" in m ? String((m as { title: string }).title) : "",
-      )
-      .filter(Boolean)
-      .join(" · ");
-  }
   return "Paid response received.";
 }
 
-export function assemblePlan(plan: QueryPlan): AssembledResult {
-  const preset = plan.presetId ?? "";
-  if (preset === "prices") {
+function sourcesFromPlan(plan: QueryPlan): { title: string; url?: string }[] {
+  return plan.steps.map((step) => ({
+    title: serviceName(step.listing),
+    url: step.listing.resource,
+  }));
+}
+
+function assembleFromPaidSteps(plan: QueryPlan): AssembledResult | null {
+  const quotes = plan.steps.flatMap((step) => quotesFromPayload(step.result));
+  const hits = plan.steps.flatMap((step) => searchHitsFromPayload(step.result));
+  if (!quotes.length && !hits.length) return null;
+
+  if (quotes.length) {
+    const stamped = quotes.find((q) => q.timestamp)?.timestamp;
+    const asOf = stamped
+      ? ` As of ${new Date(stamped).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}.`
+      : "";
+    const sections: AssembledResult["sections"] = [
+      {
+        heading: "Spot",
+        body: `Paid Allium for live token prices. These numbers came back in the seller body after x402 settlement — not a demo fixture.${asOf}`,
+        bullets: quotes.map(formatQuoteLine),
+      },
+    ];
+    if (hits.length) {
+      sections.push({
+        heading: "Context",
+        body: "Paid web search on the same run.",
+        bullets: hits.map((hit) => (hit.snippet ? `${hit.title} — ${hit.snippet.slice(0, 140)}` : hit.title)),
+      });
+    }
     return {
-      headline: "BTC $111,240 · ETH $4,218",
-      summary:
-        "Both majors are green on the day. The agent paid for a live quote, then a short tape note — no exchange account, no API key.",
-      sections: [
-        {
-          heading: "Spot",
-          body: "Paid price feed, settled in USDC.",
-          bullets: [
-            "BTC · $111,240 · +1.8% 24h",
-            "ETH · $4,218 · +2.4% 24h",
-          ],
-        },
-        {
-          heading: "Why it moved",
-          body: "Risk-on tape after stronger-than-feared liquidity prints. ETH is outrunning BTC on the session.",
-        },
-      ],
-      sources: [{ title: "Spot prices" }, { title: "Web context" }],
-    };
-  }
-  if (preset === "search") {
-    return {
-      headline: "Agents are paying APIs in USDC",
-      summary:
-        "The marketplace pitch is live: an agent hits 402, settles a nanopayment, and gets the data. No key, no seat, no invoice.",
-      sections: [
-        {
-          heading: "What shipped",
-          body: "x402 + Circle Agent Wallet is the path most builders are trying first.",
-          bullets: [
-            "Discovery is public — search before you decline a task.",
-            "Gateway batches make sub-cent calls viable.",
-            "Inspect, then pay — never pay blind.",
-          ],
-        },
-      ],
-      sources: [
-        { title: "Agent Stack", url: "https://developers.circle.com/agent-stack" },
-        { title: "Web search pass" },
-      ],
-    };
-  }
-  if (preset === "social") {
-    return {
-      headline: "USDC chatter is about agents paying",
-      summary:
-        "The feed is less “stablecoin explainer” and more “my agent just bought a quote.” Builders are posting receipts, not whitepapers.",
-      sections: [
-        {
-          heading: "Pulse",
-          body: "Last few hours on X, paid search.",
-          bullets: [
-            "Nanopayment demos outrank wallet-setup threads.",
-            "x402 + USDC is the pairing people actually ship.",
-            "Skeptics still ask who holds the keys — Agent Wallet is the reply.",
-          ],
-        },
-      ],
-      sources: [{ title: "Social search" }, { title: "Feed digest" }],
-    };
-  }
-  if (preset === "odds") {
-    return {
-      headline: "Hold is the favorite",
-      summary:
-        "Prediction markets price no cut at the next FOMC as the base case. A cut is a minority ticket — paid odds, not a blog take.",
-      sections: [
-        {
-          heading: "Implied path",
-          body: "Contracts aggregated from live books.",
-          bullets: [
-            "Hold · 64¢",
-            "Cut 25 bps · 31¢",
-            "Hike · 5¢",
-          ],
-        },
-        {
-          heading: "Read",
-          body: "The book is not pricing a surprise. If you need a second source, run Live Search on the same question.",
-        },
-      ],
-      sources: [{ title: "Prediction markets" }, { title: "Odds digest" }],
+      headline: headlineFromQuotes(quotes),
+      summary: `Live ${quotes.map((q) => q.symbol).join(" / ")} from the marketplace hop you just paid.`,
+      sections,
+      sources: sourcesFromPlan(plan),
     };
   }
 
+  return {
+    headline: hits[0]?.title ?? plan.title,
+    summary: `Paid search returned ${hits.length} source${hits.length === 1 ? "" : "s"}. No canned copy — these titles came from the seller.`,
+    sections: [
+      {
+        heading: "Sources",
+        body: plan.prompt,
+        bullets: hits.map((hit) =>
+          hit.snippet ? `${hit.title} — ${hit.snippet.slice(0, 160)}` : hit.title,
+        ),
+      },
+    ],
+    sources: [
+      ...hits.filter((hit) => hit.url).map((hit) => ({ title: hit.title, url: hit.url })),
+      ...sourcesFromPlan(plan),
+    ],
+  };
+}
+
+export function assemblePlan(plan: QueryPlan): AssembledResult {
+  const fromPaid = assembleFromPaidSteps(plan);
+  if (fromPaid) return fromPaid;
+
   const bullets = plan.steps
-    .filter((s) => s.excerpt)
-    .map((s) => `${s.title}: ${s.excerpt}`);
+    .filter((s) => s.excerpt || s.error)
+    .map((s) => (s.error ? `${s.title}: ${s.error}` : `${s.title}: ${s.excerpt}`));
+  const failed = plan.steps.some((s) => s.status === "error");
 
   return {
     headline: plan.title,
-    summary:
-      bullets[0] ||
-      "The agent ran the planned marketplace steps and assembled the paid responses.",
+    summary: failed
+      ? "The run stopped before a seller returned data. Nothing on this card is a mock quote."
+      : bullets[0] ||
+        "The agent ran the planned marketplace steps. No parseable seller body was returned.",
     sections: [
       {
         heading: "What the agent collected",
@@ -883,6 +846,7 @@ export function assemblePlan(plan: QueryPlan): AssembledResult {
         bullets: bullets.length ? bullets : undefined,
       },
     ],
+    sources: sourcesFromPlan(plan),
   };
 }
 
