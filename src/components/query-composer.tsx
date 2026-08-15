@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2Icon, SplitSquareVerticalIcon } from "lucide-react";
+import { Loader2Icon, SparkleIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -17,11 +17,18 @@ export function QueryComposer({
 }) {
   return (
     <div className="glass glow-line flex h-full min-h-0 flex-col gap-2 rounded-2xl p-3">
+      <div className="shrink-0 px-3 pt-1">
+        <p className="text-[11px] tracking-[0.16em] text-cyan uppercase">Custom query</p>
+        <p className="mt-0.5 text-[12px] text-muted-foreground">
+          Type your own ask. We turn it into priced Marketplace steps.
+        </p>
+      </div>
       <Textarea
         value={prompt}
         onChange={(e) => onPrompt(e.target.value)}
-        placeholder="Ask…"
+        placeholder="e.g. Current Bitcoin and Ethereum prices"
         className="min-h-0 flex-1 resize-none border-0 bg-transparent px-3 py-2.5 text-[15px] shadow-none focus-visible:ring-0 dark:bg-transparent"
+        aria-label="Custom query"
       />
       <Button
         size="lg"
@@ -29,8 +36,8 @@ export function QueryComposer({
         onClick={onDecompose}
         disabled={decomposing || prompt.trim().length < 4}
       >
-        {decomposing ? <Loader2Icon className="animate-spin" /> : <SplitSquareVerticalIcon />}
-        Split
+        {decomposing ? <Loader2Icon className="animate-spin" /> : <SparkleIcon />}
+        {decomposing ? "Planning…" : "Build plan"}
       </Button>
     </div>
   );
