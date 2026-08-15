@@ -23,7 +23,9 @@ export function hasShellMeta(value: string): boolean {
 }
 
 export function isSafeHttpUrl(value: string): boolean {
-  if (hasShellMeta(value) || /\s/.test(value)) return false;
+  // Query strings need & = ? — those are not shell-safe as a blob, but we
+  // pass the URL as a single argv to `circle`, never through a shell.
+  if (/[;\n\r|$`<>()"']/.test(value) || /\s/.test(value)) return false;
   try {
     const u = new URL(value);
     return u.protocol === "https:" || u.protocol === "http:";

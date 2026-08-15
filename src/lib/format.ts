@@ -39,7 +39,9 @@ export function formatUsdc(amount: number | null | undefined, digits = 2): strin
 export function formatUsdPrice(amount: number | null | undefined): string {
   if (amount == null || Number.isNaN(amount)) return "—";
   if (amount === 0) return "0";
-  if (amount < 0.01) return amount.toFixed(3);
+  if (amount > 0 && amount < 0.01) {
+    return amount.toFixed(5).replace(/0+$/, "").replace(/\.$/, "");
+  }
   return formatUsdc(amount, 3);
 }
 

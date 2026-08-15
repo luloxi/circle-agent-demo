@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { gatewayNeedsLoad, pickPayChain, planEcoOnboard, sizeEcoDeposit } from "./circle-chains";
+import { isSafeHttpUrl } from "./circle-safety";
 import {
   acceptsFromInspectSummary,
   parsePaymentRequired,
@@ -91,6 +92,17 @@ test("sizeEcoDeposit uses the 0.5 USDC Gateway minimum", () => {
   assert.equal(sizeEcoDeposit(0.08, 0.008), null);
   assert.equal(sizeEcoDeposit(0.5, 0.008), null);
   assert.equal(sizeEcoDeposit(1, 0.008), 0.5);
+});
+
+test("isSafeHttpUrl allows multi-param GET resources", () => {
+  assert.equal(
+    isSafeHttpUrl("https://api.aisa.one/apis/v2/polymarket/events?limit=8&status=open"),
+    true,
+  );
+  assert.equal(
+    isSafeHttpUrl("https://api.aisa.one/apis/v2/coingecko/simple/price?ids=bitcoin,ethereum&vs_currencies=usd"),
+    true,
+  );
 });
 
 test("gatewayNeedsLoad is about payable balance, not the 0.5 deposit floor", () => {
