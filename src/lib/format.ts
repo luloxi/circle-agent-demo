@@ -66,6 +66,49 @@ export function serviceDescription(listing: ServiceListing): string {
   );
 }
 
+/** Endpoint-specific label — Allium listings share a provider name. */
+export function serviceTitle(listing: ServiceListing): string {
+  const desc = listing.metadata?.description?.trim();
+  if (desc) {
+    const headline = headlineFromDescription(desc);
+    if (headline) return headline;
+  }
+  return humanizePath(listing.metadata?.path || pathOf(listing.resource)) || serviceName(listing);
+}
+
+export function serviceDetail(listing: ServiceListing): string {
+  const method = (listing.metadata?.method ?? "").toUpperCase();
+  const path = shortPath(listing.metadata?.path || pathOf(listing.resource));
+  return [serviceName(listing), method || null, path || null].filter(Boolean).join(" · ");
+}
+
+function headlineFromDescription(desc: string): string {
+  let text = desc.split(/[.;]/)[0]?.trim() ?? "";
+  text = text.replace(
+    /^(retrieve|get|execute|list|look up|search for|return|fetch)(?:\s+(?:the|a|an))?\s+/i,
+    "",
+  );
+  if (text.length > 58) {
+    text = `${text.slice(0, 55).replace(/\s+\S*$/, "")}…`;
+  }
+  if (!text) return "";
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function humanizePath(path: string): string {
+  const parts = path.split("/").filter((part) => part && !/^(api|v\d+)$/i.test(part));
+  const tail = parts.slice(-2);
+  if (!tail.length) return "";
+  return tail.map((part) => part.replace(/[-_]/g, " ")).join(" / ");
+}
+
+function shortPath(path: string): string {
+  const cleaned = path.split("?")[0].replace(/^\/?(api\/)?v\d+\//i, "/");
+  if (cleaned.length <= 36) return cleaned.startsWith("/") ? cleaned : `/${cleaned}`;
+  const parts = cleaned.split("/").filter(Boolean);
+  return `/${parts.slice(-3).join("/")}`;
+}
+
 export function hostnameOf(url: string): string {
   try {
     return new URL(url).hostname;

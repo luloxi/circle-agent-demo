@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   cheapestAcceptance,
-  serviceName,
+  serviceDetail,
+  serviceTitle,
   usdcFromAcceptance,
 } from "@/lib/format";
 import { UsdcAmount } from "@/components/usdc-amount";
@@ -109,13 +110,20 @@ export function MarketplacePanel({
               type="button"
               onClick={() => onSelect(service)}
               className={cn(
-                "flex items-center justify-between gap-4 rounded-xl px-4 py-3.5 text-left transition-all",
+                "flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-all",
                 active
                   ? "bg-cyan/10 ring-1 ring-cyan/30"
                   : "bg-white/3 hover:bg-white/6",
               )}
             >
-              <span className="min-w-0 truncate text-sm">{serviceName(service)}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium leading-5">
+                  {serviceTitle(service)}
+                </span>
+                <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground">
+                  {serviceDetail(service)}
+                </span>
+              </span>
               <UsdcAmount amount={price} size="md" className="shrink-0" />
             </button>
           );
