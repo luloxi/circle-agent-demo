@@ -70,8 +70,8 @@ const PRICE_ROLE: PresetRole = {
   title: "Spot prices",
   intent: "Latest BTC and ETH quotes",
   role: "prices",
-  keywords: ["price", "market", "coingecko", "crypto", "token"],
-  fallbackUrl: "https://api.aisa.one/apis/v2/coingecko/simple/price",
+  keywords: ["price", "token", "alchemy", "symbol"],
+  fallbackUrl: "https://x402.alchemy.com/prices/v1/tokens/by-symbol",
 };
 
 test("filterLiveCatalog keeps BASE-accepting real hosts only", () => {
@@ -104,64 +104,62 @@ test("demo decomposePreset prices without a live chain picks a prices listing", 
   assert.ok(plan);
   assert.ok(plan.steps.length > 0);
   const prices = plan.steps[0];
-  assert.match(prices.listing.resource, /coingecko|\/prices/i);
+  assert.match(prices.listing.resource, /coingecko|\/prices|alchemy/i);
   assert.doesNotMatch(prices.listing.resource, /example-agents\.dev\/v1\/events/);
 });
 
-test("pickListing live prefers concrete CoinGecko price over token_price/{id}", () => {
-  const templated = listing(
-    "https://api.aisa.one/apis/v2/coingecko/simple/token_price/{id}",
+test("pickListing live prefers Alchemy prices over AIsa CoinGecko", () => {
+  const alchemy = listing(
+    "https://x402.alchemy.com/prices/v1/tokens/by-symbol",
     ["eip155:8453"],
-    { name: "CoinGecko token", tags: ["price", "crypto", "token"] },
+    { name: "Alchemy", tags: ["price", "token", "alchemy"] },
   );
-  const picked = pickListing([templated, BASE_PRICES], PRICE_ROLE, "BASE", true);
-  assert.equal(picked.resource, BASE_PRICES.resource);
+  const picked = pickListing([BASE_PRICES, alchemy], PRICE_ROLE, "BASE", true);
+  assert.equal(picked.resource, alchemy.resource);
 });
 
-test("resolvePayRequest adds CoinGecko ids and vs_currencies", () => {
+test("resolvePayRequest uses Alchemy GET symbols for prices", () => {
   const req = resolvePayRequest(BASE_PRICES, { role: "prices" });
   assert.equal(req.method, "GET");
-  assert.match(req.url, /ids=bitcoin/);
-  assert.match(req.url, /vs_currencies=usd/);
+  assert.match(req.url, /alchemy\.com\/prices/);
+  assert.match(req.url, /symbols=BTC/);
+  assert.match(req.url, /symbols=ETH/);
 });
 
-test("resolvePayRequest uses GET YouTube search with engine+q", () => {
-  const yt = listing(
-    "https://api.aisa.one/apis/v2/youtube/search",
-    ["eip155:8453"],
-    { name: "YouTube", tags: ["youtube", "search"] },
-  );
-  const req = resolvePayRequest(yt, {
+test("resolvePayRequest uses Exa POST for live search", () => {
+  const exa = listing("https://api.exa.ai/search", ["eip155:8453"], {
+    name: "Exa",
+    tags: ["exa", "search"],
+  });
+  const req = resolvePayRequest(exa, {
     role: "search",
     prompt: "latest USDC agent payments",
   });
-  assert.equal(req.method, "GET");
-  assert.match(req.url, /\/youtube\/search/);
-  assert.match(req.url, /engine=youtube/);
-  assert.match(req.url, /q=latest/);
-  assert.equal(req.data, undefined);
+  assert.equal(req.method, "POST");
+  assert.equal(req.url, "https://api.exa.ai/search");
+  const body = JSON.parse(req.data ?? "{}");
+  assert.match(body.query, /USDC/);
 });
 
-test("pickListing live prefers YouTube GET over Sonar POST", () => {
+test("pickListing live prefers Exa over AIsa Sonar", () => {
   const sonar = listing(
     "https://api.aisa.one/apis/v2/perplexity/sonar",
     ["eip155:8453"],
     { name: "Sonar", tags: ["search", "sonar"] },
   );
-  const yt = listing(
-    "https://api.aisa.one/apis/v2/youtube/search",
-    ["eip155:8453"],
-    { name: "YouTube", tags: ["youtube", "search"] },
-  );
+  const exa = listing("https://api.exa.ai/search", ["eip155:8453"], {
+    name: "Exa",
+    tags: ["exa", "search"],
+  });
   const role: PresetRole = {
     title: "Web search",
     intent: "search",
     role: "search",
-    keywords: ["youtube", "search"],
-    fallbackUrl: yt.resource,
+    keywords: ["exa", "search"],
+    fallbackUrl: exa.resource,
   };
-  const picked = pickListing([sonar, yt], role, "BASE", true);
-  assert.equal(picked.resource, yt.resource);
+  const picked = pickListing([sonar, exa], role, "BASE", true);
+  assert.equal(picked.resource, exa.resource);
 });
 
 test("searchRequestForMode passes the next chain, not the leftover demo network", () => {

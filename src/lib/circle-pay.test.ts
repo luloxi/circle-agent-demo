@@ -52,6 +52,22 @@ test("acceptsFromInspectSummary expands Gateway chains including Polygon", () =>
   assert.equal(accepts[0].extra?.name, "GatewayWalletBatched");
 });
 
+test("pickPayChain prefers BASE vanilla over MATIC Gateway when both are funded", () => {
+  const picked = pickPayChain(
+    [GW_MATIC, VANILLA_BASE],
+    "BASE",
+    [
+      { chain: "BASE", vanilla: 1, gateway: 0 },
+      { chain: "MATIC", vanilla: 0, gateway: 1 },
+    ],
+    0.008,
+    "mainnet",
+  );
+  assert.ok(picked);
+  assert.equal(picked.chain, "BASE");
+  assert.equal(picked.gateway, false);
+});
+
 test("pickPayChain with only BASE vanilla does not mark Gateway as ready", () => {
   const picked = pickPayChain(
     [GW_BASE, GW_MATIC, VANILLA_BASE],

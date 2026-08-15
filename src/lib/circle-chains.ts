@@ -175,6 +175,15 @@ export function pickPayChain(
 
   const price = priceUsdc ?? 0;
   if (funded?.length) {
+    if (preferredCliChain) {
+      const preferred = preferredCliChain.toUpperCase();
+      const vanillaOnPreferred = mapped.find((row) => {
+        if (row.gateway || row.chain !== preferred) return false;
+        const pool = funded.find((f) => f.chain === row.chain);
+        return (pool?.vanilla ?? 0) + 1e-9 >= price;
+      });
+      if (vanillaOnPreferred) return { chain: vanillaOnPreferred.chain, gateway: false };
+    }
     const gwReady = mapped.find((row) => {
       if (!row.gateway) return false;
       const pool = funded.find((f) => f.chain === row.chain);

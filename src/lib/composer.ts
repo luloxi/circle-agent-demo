@@ -45,15 +45,15 @@ export const PRESETS: PresetDefinition[] = [
         title: "Spot prices",
         intent: "Latest BTC and ETH quotes",
         role: "prices",
-        keywords: ["price", "market", "coingecko", "crypto", "token"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/coingecko/simple/price",
+        keywords: ["price", "token", "alchemy", "symbol"],
+        fallbackUrl: "https://x402.alchemy.com/prices/v1/tokens/by-symbol",
       },
       {
         title: "Context",
         intent: "What moved the tape today",
         role: "search",
-        keywords: ["youtube", "search"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/youtube/search",
+        keywords: ["exa", "search"],
+        fallbackUrl: "https://api.exa.ai/search",
       },
     ],
   },
@@ -69,8 +69,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Web search",
         intent: "Find current sources on agentic USDC payments",
         role: "search",
-        keywords: ["youtube", "search"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/youtube/search",
+        keywords: ["exa", "search"],
+        fallbackUrl: "https://api.exa.ai/search",
       },
       {
         title: "Digest",
@@ -92,8 +92,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Social search",
         intent: "Recent posts mentioning Circle USDC",
         role: "social",
-        keywords: ["twitter", "tweet", "social", "posts"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/twitter/tweet/advanced_search",
+        keywords: ["exa", "search", "twitter", "social"],
+        fallbackUrl: "https://api.exa.ai/search",
       },
       {
         title: "Digest",
@@ -115,8 +115,8 @@ export const PRESETS: PresetDefinition[] = [
         title: "Odds",
         intent: "Live prediction-market contracts on the next Fed decision",
         role: "odds",
-        keywords: ["polymarket", "prediction", "odds"],
-        fallbackUrl: "https://api.aisa.one/apis/v2/polymarket/events",
+        keywords: ["exa", "search", "prediction", "odds"],
+        fallbackUrl: "https://api.exa.ai/search",
       },
       {
         title: "Digest",
@@ -132,10 +132,10 @@ export const PRESETS: PresetDefinition[] = [
 const FALLBACK_BY_URL = new Map(MOCK_SERVICES.map((s) => [s.resource, s]));
 
 const DISCOVERY_QUERY_BY_PRESET: Record<string, string> = {
-  prices: "coingecko simple price",
-  search: "youtube search",
-  social: "twitter advanced_search",
-  odds: "polymarket events",
+  prices: "alchemy tokens by-symbol",
+  search: "exa search",
+  social: "exa search",
+  odds: "exa search",
 };
 
 export function discoveryQueryFor(presetId?: string, prompt?: string): string {
@@ -173,9 +173,8 @@ function queryFromPrompt(prompt: string, fallback: string): string {
 }
 
 /**
- * Live x402 binds the signature to the exact resource URL (including query).
- * AIsa POST/Sonar rejects the signed Gateway payment (payment_requirements_mismatch).
- * Run therefore uses GET listings with the required query string filled in.
+ * Live pay: prefer vanilla-BASE sellers. AIsa Gateway 402s use
+ * maxTimeoutSeconds 604900; Circle CLI signs 2592000 → payment_requirements_mismatch.
  */
 export function resolvePayRequest(
   listing: ServiceListing,
@@ -185,49 +184,33 @@ export function resolvePayRequest(
   const role = opts?.role ?? "";
   const url = listing.resource;
 
-  if (/\/coingecko\/simple\/price/i.test(url) || role === "prices") {
-    const target = /\/coingecko\/simple\/price/i.test(url)
-      ? url
-      : "https://api.aisa.one/apis/v2/coingecko/simple/price";
-    return {
-      url: withQuery(target, { ids: "bitcoin,ethereum", vs_currencies: "usd" }),
-      method: "GET",
-    };
+  if (/alchemy\.com\/prices\/v1\/tokens\/by-symbol/i.test(url) || role === "prices") {
+    const target = /by-symbol/i.test(url)
+      ? url.split("?")[0]
+      : "https://x402.alchemy.com/prices/v1/tokens/by-symbol";
+    const parsed = new URL(target);
+    if (!parsed.searchParams.has("symbols")) {
+      parsed.searchParams.append("symbols", "BTC");
+      parsed.searchParams.append("symbols", "ETH");
+    }
+    return { url: parsed.toString(), method: "GET" };
   }
 
-  if (/\/youtube\/search/i.test(url) || role === "search") {
-    const target = /\/youtube\/search/i.test(url)
-      ? url
-      : "https://api.aisa.one/apis/v2/youtube/search";
+  if (/exa\.ai\/search/i.test(url) || role === "search" || role === "social" || role === "odds") {
+    const target = /exa\.ai\/search/i.test(url) ? url : "https://api.exa.ai/search";
+    const fallback =
+      role === "social"
+        ? "Circle USDC"
+        : role === "odds"
+          ? "current Fed rate decision prediction market odds"
+          : "USDC AI agents paying APIs";
     return {
-      url: withQuery(target, {
-        engine: "youtube",
-        q: queryFromPrompt(prompt, "USDC AI agents"),
+      url: target,
+      method: "POST",
+      data: JSON.stringify({
+        query: queryFromPrompt(prompt, fallback),
+        numResults: 5,
       }),
-      method: "GET",
-    };
-  }
-
-  if (/\/twitter\/tweet\/advanced_search/i.test(url) || role === "social") {
-    const target = /\/twitter\/tweet\/advanced_search/i.test(url)
-      ? url
-      : "https://api.aisa.one/apis/v2/twitter/tweet/advanced_search";
-    return {
-      url: withQuery(target, {
-        query: queryFromPrompt(prompt, "Circle USDC"),
-        queryType: "Latest",
-      }),
-      method: "GET",
-    };
-  }
-
-  if (/\/polymarket\/events/i.test(url) || role === "odds") {
-    const target = /\/polymarket\/events/i.test(url)
-      ? url
-      : "https://api.aisa.one/apis/v2/polymarket/events";
-    return {
-      url: withQuery(target, { limit: "8", status: "open" }),
-      method: "GET",
     };
   }
 
@@ -277,11 +260,9 @@ function scoreListing(
   if (listingAcceptsChain(listing, preferredChain)) score += 8;
   if (live && isTemplatedResource(listing.resource)) score -= 12;
   if (live && (listing.metadata?.method ?? "GET").toUpperCase() === "GET") score += 4;
-  if (live && /\/coingecko\/simple\/price/i.test(listing.resource)) score += 8;
-  if (live && /\/youtube\/search/i.test(listing.resource)) score += 8;
-  if (live && /\/twitter\/tweet\/advanced_search/i.test(listing.resource)) score += 8;
-  if (live && /\/polymarket\/events/i.test(listing.resource)) score += 8;
-  if (live && /perplexity|sonar/i.test(listing.resource)) score -= 16;
+  if (live && /aisa\.one/i.test(listing.resource)) score -= 20;
+  if (live && /alchemy\.com\/prices/i.test(listing.resource)) score += 10;
+  if (live && /exa\.ai\/search/i.test(listing.resource)) score += 10;
   return score;
 }
 
@@ -595,8 +576,8 @@ const DEFAULT_ROLES: PresetRole[] = [
     title: "Web search",
     intent: "Find relevant sources",
     role: "search",
-    keywords: ["youtube", "search"],
-    fallbackUrl: "https://api.aisa.one/apis/v2/youtube/search",
+    keywords: ["exa", "search"],
+    fallbackUrl: "https://api.exa.ai/search",
   },
   {
     title: "Synthesize",
