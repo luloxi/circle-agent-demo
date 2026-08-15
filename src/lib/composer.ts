@@ -429,7 +429,10 @@ function planFromRoles(
   };
 }
 
-export function presetCards(catalog: ServiceListing[] = MOCK_SERVICES): PresetCard[] {
+export function presetCards(
+  catalog: ServiceListing[] = MOCK_SERVICES,
+  opts?: { preferredChain?: string; live?: boolean },
+): PresetCard[] {
   return PRESETS.map((preset) => {
     const plan = planFromRoles({
       title: preset.title,
@@ -438,6 +441,8 @@ export function presetCards(catalog: ServiceListing[] = MOCK_SERVICES): PresetCa
       presetId: preset.id,
       roles: preset.roles,
       catalog,
+      preferredChain: opts?.preferredChain,
+      live: opts?.live,
     });
     return {
       id: preset.id,

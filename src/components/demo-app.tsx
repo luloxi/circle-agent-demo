@@ -611,6 +611,9 @@ export function DemoApp({
     resetSession();
     log("info", "MODE", nextDemo ? "Demo" : nextChain);
     void search(query, category, { demo: nextDemo, chain: nextChain });
+    void api.presets(nextDemo, nextChain).then((result) => setPresets(result.presets)).catch(() => {
+      /* keep current cards */
+    });
     if (nextDemo) reveal(2);
     else setView(1);
   }

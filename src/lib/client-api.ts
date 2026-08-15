@@ -190,5 +190,8 @@ export const api = {
       { method: "POST", body: JSON.stringify(opts) },
     ),
 
-  presets: () => request<{ presets: PresetCard[] }>("/api/composer/decompose"),
+  presets: (demo: boolean, chain: NetworkId) =>
+    request<{ presets: PresetCard[] }>(
+      `/api/composer/decompose?demo=${withDemo(demo)}&chain=${chain}`,
+    ),
 };

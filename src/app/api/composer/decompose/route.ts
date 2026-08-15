@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     return Response.json({
       plan: { ...plan, note: plan.note ?? note },
       source,
-      presets: presetCards(catalog),
+      presets: presetCards(catalog, { preferredChain: network.cliChain, live: true }),
     });
   }
 
@@ -81,6 +81,34 @@ export async function POST(request: Request) {
   });
 }
 
-export async function GET() {
-  return Response.json({ presets: presetCards() });
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const demo = wantsDemo({ searchParams });
+  const network = getNetwork(readNetwork({ searchParams }));
+  if (demo) {
+    return Response.json({ presets: presetCards() });
+  }
+  const queries = ["alchemy tokens by-symbol", "exa search"];
+  const bags = await Promise.all(
+    queries.map((query) =>
+      searchServicesSafe({
+        query,
+        network: network.discoveryNetwork,
+        limit: 24,
+        allowUnfiltered: false,
+      }),
+    ),
+  );
+  const seen = new Set<string>();
+  const catalog: ServiceListing[] = [];
+  for (const bag of bags) {
+    for (const item of bag.data.items) {
+      if (seen.has(item.resource)) continue;
+      seen.add(item.resource);
+      catalog.push(item);
+    }
+  }
+  return Response.json({
+    presets: presetCards(catalog, { preferredChain: network.cliChain, live: true }),
+  });
 }
