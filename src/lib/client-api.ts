@@ -171,6 +171,7 @@ export const api = {
     address: string;
     maxAmount: number;
     method?: string;
+    data?: string;
     estimate?: boolean;
   }) =>
     request<PayResult>("/api/services/pay", {

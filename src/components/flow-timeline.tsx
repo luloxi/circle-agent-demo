@@ -53,7 +53,8 @@ export function FlowTimeline({
   gatewayLoading?: boolean;
   onLoadGateway?: () => void;
 }) {
-  const showGateway = Boolean(onLoadGateway) && gatewayNeedsLoad(gatewayUsdc);
+  const showGateway =
+    Boolean(onLoadGateway) && gatewayNeedsLoad(gatewayUsdc, Math.max(plan.estimatedTotal, 0.01));
   return (
     <div className="glass flex h-full min-h-0 flex-col rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex shrink-0 items-start justify-between gap-3">

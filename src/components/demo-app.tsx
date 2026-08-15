@@ -20,6 +20,7 @@ import {
   assemblePlan,
   excerptFromResult,
   removeStep,
+  resolvePayRequest,
 } from "@/lib/composer";
 import { DEMO_FUND_AMOUNT, DEMO_STARTING_BALANCE } from "@/lib/mock-data";
 import { DEFAULT_NETWORK, searchRequestForMode, type AppMode } from "@/lib/networks";
@@ -497,16 +498,21 @@ export function DemoApp({
         ),
       };
       setPlan(working);
-      log("pay", "STEP", `${step.title} → ${step.listing.resource}`);
+      const payReq = resolvePayRequest(step.listing, {
+        role: step.role,
+        prompt: working.prompt,
+      });
+      log("pay", "STEP", `${step.title} → ${payReq.url}`);
 
       try {
         const result = await api.pay({
           demo: demoMode,
           chain: network,
-          url: step.listing.resource,
+          url: payReq.url,
           address: connected.address,
           maxAmount: Math.max(step.priceUsdc, 0.001),
-          method: step.listing.metadata?.method,
+          method: payReq.method,
+          data: payReq.data,
         });
         if (result.gatewayOnboard) {
           log(

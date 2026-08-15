@@ -141,6 +141,50 @@ export function listingAcceptsChain(listing: ServiceListing, chain?: string): bo
   return (listing.accepts ?? []).some((entry) => cliChainFromNetwork(entry.network) === want);
 }
 
+export function isTemplatedResource(url: string): boolean {
+  return /\{[^}/]+\}|%7B[^%]+%7D/i.test(url);
+}
+
+/** Fill the seller's required query/body so live pay matches the 402 resource. */
+export function resolvePayRequest(
+  listing: ServiceListing,
+  opts?: { role?: string; prompt?: string },
+): { url: string; method: string; data?: string } {
+  const prompt = (opts?.prompt ?? "").trim() || "Bitcoin and Ethereum spot price";
+  const role = opts?.role ?? "";
+  let url = listing.resource;
+  const listedMethod = (listing.metadata?.method ?? "GET").toUpperCase();
+
+  if (/\/coingecko\/simple\/price/i.test(url)) {
+    const parsed = new URL(url);
+    if (!parsed.searchParams.get("ids")) parsed.searchParams.set("ids", "bitcoin,ethereum");
+    if (!parsed.searchParams.get("vs_currencies")) {
+      parsed.searchParams.set("vs_currencies", "usd");
+    }
+    return { url: parsed.toString(), method: "GET" };
+  }
+
+  url = url
+    .replace(/%7Bid%7D/gi, "bitcoin")
+    .replace(/\{id\}/gi, "bitcoin")
+    .replace(/%7Bcontract_address%7D/gi, "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
+    .replace(/\{contract_address\}/gi, "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+
+  if (/perplexity|sonar/i.test(url) || role === "search") {
+    const model = /sonar-pro/i.test(url) ? "sonar-pro" : "sonar";
+    return {
+      url,
+      method: "POST",
+      data: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt.slice(0, 400) }],
+      }),
+    };
+  }
+
+  return { url, method: listedMethod };
+}
+
 export function isMockMarketplaceHost(url: string): boolean {
   try {
     const host = new URL(url).hostname.toLowerCase();
@@ -164,6 +208,7 @@ function scoreListing(
   listing: ServiceListing,
   keywords: string[],
   preferredChain?: string,
+  live = false,
 ): number {
   const hay = [
     listing.resource,
@@ -181,6 +226,7 @@ function scoreListing(
     if (hay.includes(kw.toLowerCase())) score += 2;
   }
   if (listingAcceptsChain(listing, preferredChain)) score += 8;
+  if (live && isTemplatedResource(listing.resource)) score -= 12;
   return score;
 }
 
@@ -198,7 +244,7 @@ export function pickListing(
 
   const pool = eligible.length ? eligible : live && preferredChain ? [] : catalog;
   const ranked = [...pool]
-    .map((item) => ({ item, score: scoreListing(item, role.keywords, preferredChain) }))
+    .map((item) => ({ item, score: scoreListing(item, role.keywords, preferredChain, live) }))
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || listingPrice(a.item) - listingPrice(b.item));
 
@@ -235,7 +281,7 @@ function alternativesFor(
       if (live && isMockMarketplaceHost(item.resource)) return false;
       return true;
     })
-    .map((item) => ({ item, score: scoreListing(item, role.keywords, preferredChain) }))
+    .map((item) => ({ item, score: scoreListing(item, role.keywords, preferredChain, live) }))
     .filter((row) => row.score > 0)
     .sort((a, b) => listingPrice(a.item) - listingPrice(b.item));
 

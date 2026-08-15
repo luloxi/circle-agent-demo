@@ -42,7 +42,8 @@ export function normalizeMethod(value: string | undefined, fallback: HttpMethod 
 }
 
 export function isSafeJsonPayload(value: string): boolean {
-  if (hasShellMeta(value)) return false;
+  // Quotes are required in JSON; argv spawn does not go through a shell.
+  if (/[;\n\r|&$`<>()]/.test(value)) return false;
   try {
     JSON.parse(value);
     return true;

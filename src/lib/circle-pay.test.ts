@@ -93,9 +93,9 @@ test("sizeEcoDeposit uses the 0.5 USDC Gateway minimum", () => {
   assert.equal(sizeEcoDeposit(1, 0.008), 0.5);
 });
 
-test("gatewayNeedsLoad is true until the 0.5 USDC floor is met", () => {
+test("gatewayNeedsLoad is about payable balance, not the 0.5 deposit floor", () => {
   assert.equal(gatewayNeedsLoad(null), true);
   assert.equal(gatewayNeedsLoad(0), true);
-  assert.equal(gatewayNeedsLoad(0.25), true);
-  assert.equal(gatewayNeedsLoad(0.5), false);
+  assert.equal(gatewayNeedsLoad(0.44, 0.016), false);
+  assert.equal(gatewayNeedsLoad(0.008, 0.016), true);
 });

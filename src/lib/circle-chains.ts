@@ -92,8 +92,12 @@ const ECO_SLACK_USDC = 0.02;
 /** Circle CLI: `Gateway deposit amount must be at least 0.5 USDC`. */
 export const GATEWAY_MIN_DEPOSIT = 0.5;
 
-export function gatewayNeedsLoad(gatewayUsdc: number | null | undefined): boolean {
-  return (gatewayUsdc ?? 0) + 1e-9 < GATEWAY_MIN_DEPOSIT;
+/** True when Gateway cannot cover the next pay. 0.5 is the *deposit* floor, not this. */
+export function gatewayNeedsLoad(
+  gatewayUsdc: number | null | undefined,
+  needUsdc = 0.01,
+): boolean {
+  return (gatewayUsdc ?? 0) + 1e-9 < needUsdc;
 }
 
 /** Size a one-time eco deposit. Never drain vanilla; return null if too poor. */
@@ -213,6 +217,12 @@ export function fundsMayHaveMoved(text: string): boolean {
 
 export function classifyPayFailure(text: string): { hint: string; retryable: boolean } {
   const blob = text;
+  if (/payment_requirements_mismatch/i.test(blob)) {
+    return {
+      hint: "Seller rejected the signed payment — usually a missing query or body. Do not retry the same URL; funds may have moved.",
+      retryable: false,
+    };
+  }
   if (fundsMayHaveMoved(blob)) {
     return {
       hint: "Payment may already have settled. Check ~/.circle-cli/payments/ and `circle wallet balance` / `circle gateway balance` before retrying.",

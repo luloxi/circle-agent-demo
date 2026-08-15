@@ -6,6 +6,7 @@ import {
   isMockMarketplaceHost,
   listingAcceptsChain,
   pickListing,
+  resolvePayRequest,
   type PresetRole,
 } from "./composer";
 import { MOCK_SERVICES } from "./mock-data";
@@ -105,6 +106,23 @@ test("demo decomposePreset prices without a live chain picks a prices listing", 
   const prices = plan.steps[0];
   assert.match(prices.listing.resource, /coingecko|\/prices/i);
   assert.doesNotMatch(prices.listing.resource, /example-agents\.dev\/v1\/events/);
+});
+
+test("pickListing live prefers concrete CoinGecko price over token_price/{id}", () => {
+  const templated = listing(
+    "https://api.aisa.one/apis/v2/coingecko/simple/token_price/{id}",
+    ["eip155:8453"],
+    { name: "CoinGecko token", tags: ["price", "crypto", "token"] },
+  );
+  const picked = pickListing([templated, BASE_PRICES], PRICE_ROLE, "BASE", true);
+  assert.equal(picked.resource, BASE_PRICES.resource);
+});
+
+test("resolvePayRequest adds CoinGecko ids and vs_currencies", () => {
+  const req = resolvePayRequest(BASE_PRICES, { role: "prices" });
+  assert.equal(req.method, "GET");
+  assert.match(req.url, /ids=bitcoin/);
+  assert.match(req.url, /vs_currencies=usd/);
 });
 
 test("searchRequestForMode passes the next chain, not the leftover demo network", () => {
