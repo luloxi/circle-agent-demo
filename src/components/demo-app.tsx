@@ -525,6 +525,7 @@ export function DemoApp({
       const payReq = resolvePayRequest(step.listing, {
         role: step.role,
         prompt: working.prompt,
+        query: step.role === "context" ? step.intent : undefined,
       });
       log("pay", "STEP", `${step.title} → ${payReq.url}`);
 

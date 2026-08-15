@@ -97,6 +97,36 @@ test("decomposeLive on BASE with only Arc/mock fixtures still binds pinned vanil
     network: BASE_NETWORK,
   });
   assert.ok(plan);
-  assert.equal(plan.steps.length, 1);
+  assert.equal(plan.steps.length, 2);
   assert.match(plan.steps[0].listing.resource, /allium\.so/);
+  assert.match(plan.steps[1].listing.resource, /exa\.ai/);
+});
+
+test("decomposeLive suggested search pays two real hops", () => {
+  const plan = decomposeLive({
+    presetId: "search",
+    catalog: CATALOG,
+    chain: "BASE",
+    network: BASE_NETWORK,
+  });
+  assert.ok(plan);
+  assert.equal(plan.steps.length, 2);
+  assert.equal(plan.steps[0].role, "search");
+  assert.equal(plan.steps[1].role, "context");
+  for (const step of plan.steps) {
+    assert.equal(isMockMarketplaceHost(step.listing.resource), false, step.listing.resource);
+    assert.equal(listingAcceptsChain(step.listing, "BASE"), true, step.listing.resource);
+  }
+});
+
+test("decomposeLive custom prompt stays one hop", () => {
+  const plan = decomposeLive({
+    prompt: "What is Circle Agent Wallet?",
+    catalog: CATALOG,
+    chain: "BASE",
+    network: BASE_NETWORK,
+  });
+  assert.ok(plan);
+  assert.equal(plan.steps.length, 1);
+  assert.equal(isMockMarketplaceHost(plan.steps[0].listing.resource), false);
 });

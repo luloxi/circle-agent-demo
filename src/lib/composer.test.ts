@@ -3,12 +3,14 @@ import { test } from "node:test";
 import {
   assemblePlan,
   decomposePreset,
+  decomposePrompt,
   excerptFromResult,
   filterLiveCatalog,
   isMockMarketplaceHost,
   listingAcceptsChain,
   pickListing,
   resolvePayRequest,
+  selectLiveRoles,
   type PresetRole,
 } from "./composer";
 import { MOCK_SERVICES } from "./mock-data";
@@ -129,6 +131,71 @@ test("resolvePayRequest uses Allium POST for prices", () => {
   assert.ok(Array.isArray(body));
   assert.equal(body[0].chain, "ethereum");
 });
+
+test("live suggested presets keep two payable hops; custom stays one", () => {
+  const prices = decomposePreset("prices", MOCK_SERVICES, "BASE", true);
+  assert.ok(prices);
+  assert.equal(prices.steps.length, 2);
+  assert.match(prices.steps[0].listing.resource, /allium\.so/);
+  assert.match(prices.steps[1].listing.resource, /exa\.ai/);
+
+  const search = decomposePreset("search", MOCK_SERVICES, "BASE", true);
+  assert.ok(search);
+  assert.equal(search.steps.length, 2);
+  assert.equal(search.steps[1].role, "context");
+  for (const step of search.steps) {
+    assert.equal(isMockMarketplaceHost(step.listing.resource), false);
+  }
+
+  const custom = decomposePrompt("Get the current price of Bitcoin and Ethereum.", MOCK_SERVICES, "BASE", true);
+  assert.equal(custom.steps.length, 1);
+  assert.match(custom.steps[0].listing.resource, /allium\.so/);
+
+  const demoSearch = decomposePreset("search", MOCK_SERVICES);
+  assert.ok(demoSearch);
+  assert.equal(demoSearch.steps.length, 2);
+  assert.equal(demoSearch.steps[1].role, "summarize");
+});
+
+test("resolvePayRequest context hop uses the follow-up query, not the plan prompt", () => {
+  const req = resolvePayRequest(
+    listing("https://api.exa.ai/search", ["eip155:8453"], { name: "Exa", tags: ["exa"] }),
+    {
+      role: "context",
+      prompt: "Get the current price of Bitcoin and Ethereum.",
+      query: "What moved Bitcoin and Ethereum today",
+    },
+  );
+  const body = JSON.parse(req.data ?? "{}");
+  assert.match(body.query, /moved Bitcoin/);
+  assert.doesNotMatch(body.query, /Get the current price/);
+});
+
+test("selectLiveRoles does not invent a second hop for composer", () => {
+  const roles = selectLiveRoles(PRESET_SEARCH_ROLES, {
+    live: true,
+    source: "composer",
+    presetId: "search",
+  });
+  assert.equal(roles.length, 1);
+});
+
+const PRESET_SEARCH_ROLES: PresetRole[] = [
+  {
+    title: "Web search",
+    intent: "Find current sources",
+    role: "search",
+    keywords: ["exa", "search"],
+    fallbackUrl: "https://api.exa.ai/search",
+  },
+  {
+    title: "Digest",
+    intent: "Compress findings",
+    role: "summarize",
+    keywords: ["summarize"],
+    fallbackUrl: "https://api.example-agents.dev/v1/summarize",
+  },
+];
 
 test("resolvePayRequest uses Exa POST for live search", () => {
   const exa = listing("https://api.exa.ai/search", ["eip155:8453"], {

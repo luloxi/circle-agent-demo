@@ -56,8 +56,8 @@ export const PRESETS: PresetDefinition[] = [
       },
       {
         title: "Context",
-        intent: "What moved the tape today",
-        role: "search",
+        intent: "What moved Bitcoin and Ethereum today",
+        role: "context",
         keywords: ["exa", "search"],
         fallbackUrl: "https://api.exa.ai/search",
       },
@@ -231,7 +231,7 @@ function queryFromPrompt(prompt: string, fallback: string): string {
  */
 export function resolvePayRequest(
   listing: ServiceListing,
-  opts?: { role?: string; prompt?: string },
+  opts?: { role?: string; prompt?: string; query?: string },
 ): { url: string; method: string; data?: string } {
   const prompt = (opts?.prompt ?? "").trim();
   const role = opts?.role ?? "";
@@ -254,19 +254,27 @@ export function resolvePayRequest(
     };
   }
 
-  if (/exa\.ai\/search/i.test(url) || role === "search" || role === "social" || role === "odds") {
+  if (
+    /exa\.ai\/search/i.test(url) ||
+    role === "search" ||
+    role === "social" ||
+    role === "odds" ||
+    role === "context"
+  ) {
     const target = /exa\.ai\/search/i.test(url) ? url : "https://api.exa.ai/search";
     const fallback =
       role === "social"
         ? "Circle USDC"
         : role === "odds"
           ? "current Fed rate decision prediction market odds"
-          : "USDC AI agents paying APIs";
+          : role === "context"
+            ? "what moved Bitcoin and Ethereum today"
+            : "USDC AI agents paying APIs";
     return {
       url: target,
       method: "POST",
       data: JSON.stringify({
-        query: queryFromPrompt(prompt, fallback),
+        query: queryFromPrompt(opts?.query || prompt, fallback),
         numResults: 5,
       }),
     };
@@ -449,6 +457,65 @@ function makeStep(
   };
 }
 
+const EXA_SEARCH = "https://api.exa.ai/search";
+
+function liveFollowupRole(presetId?: string): PresetRole {
+  if (presetId === "social") {
+    return {
+      title: "More posts",
+      intent: "Circle USDC agents paying APIs recent discussion",
+      role: "context",
+      keywords: ["exa", "search"],
+      fallbackUrl: EXA_SEARCH,
+    };
+  }
+  if (presetId === "odds") {
+    return {
+      title: "Second book",
+      intent: "CME FedWatch next FOMC implied probability prediction market",
+      role: "context",
+      keywords: ["exa", "search"],
+      fallbackUrl: EXA_SEARCH,
+    };
+  }
+  if (presetId === "prices") {
+    return {
+      title: "Context",
+      intent: "What moved Bitcoin and Ethereum today",
+      role: "context",
+      keywords: ["exa", "search"],
+      fallbackUrl: EXA_SEARCH,
+    };
+  }
+  return {
+    title: "Second source",
+    intent: "Circle Agent Wallet x402 USDC nanopayments latest",
+    role: "context",
+    keywords: ["exa", "search"],
+    fallbackUrl: EXA_SEARCH,
+  };
+}
+
+/**
+ * Live booth path: suggested cards pay two hops so Run shows the
+ * micropayment chain. Custom composer stays one hop.
+ * Summarize / mock hosts are remapped to vanilla Exa — AIsa Gateway 402s
+ * mismatch Circle CLI timeouts.
+ */
+export function selectLiveRoles(
+  roles: PresetRole[],
+  opts: { live: boolean; source: QueryPlan["source"]; presetId?: string },
+): PresetRole[] {
+  if (!opts.live) return roles;
+  const payable = roles.map((role) =>
+    role.role === "summarize" || isMockMarketplaceHost(role.fallbackUrl)
+      ? liveFollowupRole(opts.presetId)
+      : role,
+  );
+  if (opts.source === "preset") return payable.slice(0, 2);
+  return payable.slice(0, 1);
+}
+
 function planFromRoles(
   opts: {
     title: string;
@@ -481,9 +548,11 @@ function planFromRoles(
   } else if (!catalog.length) {
     catalog = MOCK_SERVICES;
   }
-  // Live AIsa POST (Sonar) signs then 402s with payment_requirements_mismatch.
-  // One GET hop per preset is the payable booth path.
-  const roles = opts.live ? opts.roles.filter((role) => role.role !== "summarize").slice(0, 1) : opts.roles;
+  const roles = selectLiveRoles(opts.roles, {
+    live: Boolean(opts.live),
+    source: opts.source,
+    presetId: opts.presetId,
+  });
   const steps = roles.map((role, i) =>
     makeStep(role, catalog, i, opts.preferredChain, opts.live),
   );
