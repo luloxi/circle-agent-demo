@@ -87,7 +87,7 @@ export function SiteHeader({
           {connected ? (
             <UsdcAmount
               amount={balanceUsdc}
-              digits={2}
+              digits={3}
               size="sm"
               className="hidden sm:inline-flex"
             />

@@ -300,8 +300,15 @@ export function DemoApp({
   balanceRef.current = balanceUsdc;
   const gatewayRef = useRef(gatewayUsdc);
   gatewayRef.current = gatewayUsdc;
+  const spendRefreshTimers = useRef<number[]>([]);
 
-  const handleRefresh = useCallback(async (opts?: { silent?: boolean }) => {
+  useEffect(() => {
+    return () => {
+      for (const id of spendRefreshTimers.current) window.clearTimeout(id);
+    };
+  }, []);
+
+  const handleRefresh = useCallback(async (opts?: { silent?: boolean; ceiling?: number }) => {
     if (!wallet?.address) return null;
     try {
       const bal = await api.balance(
@@ -312,11 +319,19 @@ export function DemoApp({
         demoMode ? (gatewayRef.current ?? undefined) : undefined,
       );
       if (bal.balanceUsdc != null) {
-        setBalanceUsdc(bal.balanceUsdc);
-        setFunded(bal.balanceUsdc > 0);
+        const next =
+          opts?.ceiling != null && Number.isFinite(opts.ceiling)
+            ? Math.min(bal.balanceUsdc, opts.ceiling)
+            : bal.balanceUsdc;
+        setBalanceUsdc(next);
+        setFunded(next > 0);
         if (!opts?.silent) {
-          log("ok", "BAL", `Balance ${bal.balanceUsdc.toFixed(2)} USDC`);
+          log("ok", "BAL", `Balance ${next.toFixed(3)} USDC`);
         }
+        if (bal.gatewayUsdc != null) {
+          setGatewayUsdc(bal.gatewayUsdc);
+        }
+        return next;
       }
       if (bal.gatewayUsdc != null) {
         setGatewayUsdc(bal.gatewayUsdc);
@@ -329,6 +344,15 @@ export function DemoApp({
       return null;
     }
   }, [demoMode, log, network, wallet?.address]);
+
+  function schedulePostSpendRefresh(ceiling?: number) {
+    for (const id of spendRefreshTimers.current) window.clearTimeout(id);
+    spendRefreshTimers.current = [4000, 12000].map((ms) =>
+      window.setTimeout(() => {
+        void handleRefresh({ silent: true, ceiling });
+      }, ms),
+    );
+  }
 
   async function handleLoadGateway() {
     if (!wallet?.address && !demoMode) {
@@ -523,9 +547,10 @@ export function DemoApp({
         }
         const paidAmount = result.amountUsdc;
         spent = Number((spent + paidAmount).toFixed(6));
-        if (demoMode && liveBalance.value != null) {
+        if (liveBalance.value != null && Number.isFinite(paidAmount) && paidAmount > 0) {
           liveBalance.value = Math.max(0, Number((liveBalance.value - paidAmount).toFixed(6)));
           setBalanceUsdc(liveBalance.value);
+          setFunded(liveBalance.value > 0);
         }
         working = {
           ...working,
@@ -584,6 +609,14 @@ export function DemoApp({
     ]);
     log(ok ? "ok" : "warn", "RUN", ok ? `Assembled · ${spent} USDC` : `Stopped · ${spent} USDC spent`);
     if (ok) reveal(5);
+    if (!demoMode) {
+      const ceiling = liveBalance.value ?? undefined;
+      const next = await handleRefresh({ silent: true, ceiling });
+      if (next != null) {
+        log("ok", "BAL", `Wallet ${next.toFixed(3)} USDC`);
+      }
+      schedulePostSpendRefresh(ceiling);
+    }
     setExecuting(false);
   }
 
