@@ -53,10 +53,16 @@ export function FlowTimeline({
       {plan.steps.length === 0 && (plan.note || (onDemo && onNetwork && network)) ? (
         <div className="flex min-h-0 flex-1 flex-col justify-center">
           {onDemo && onNetwork && network ? (
-            <CatalogEscape network={network} onDemo={onDemo} onNetwork={onNetwork} />
-          ) : (
+            <CatalogEscape
+              network={network}
+              onDemo={onDemo}
+              onNetwork={onNetwork}
+              note={plan.note}
+              allowLiveEmpty
+            />
+          ) : plan.note ? (
             <p className="text-sm leading-relaxed text-muted-foreground">{plan.note}</p>
-          )}
+          ) : null}
         </div>
       ) : (
       <ol className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto md:flex-row md:items-stretch">

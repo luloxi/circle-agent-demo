@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  decomposePreset,
   filterLiveCatalog,
   isMockMarketplaceHost,
   listingAcceptsChain,
   pickListing,
   type PresetRole,
 } from "./composer";
+import { MOCK_SERVICES } from "./mock-data";
+import { searchRequestForMode } from "./networks";
 import type { ServiceListing } from "./types";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -93,4 +96,24 @@ test("pickListing live never selects example-agents.dev even when it accepts BAS
   const picked = pickListing([MOCK_BASE, ARC_ONLY], PRICE_ROLE, "BASE", true);
   assert.equal(isMockMarketplaceHost(picked.resource), false);
   assert.notEqual(picked.resource, MOCK_BASE.resource);
+});
+
+test("demo decomposePreset prices without a live chain picks a prices listing", () => {
+  const plan = decomposePreset("prices", MOCK_SERVICES);
+  assert.ok(plan);
+  assert.ok(plan.steps.length > 0);
+  const prices = plan.steps[0];
+  assert.match(prices.listing.resource, /coingecko|\/prices/i);
+  assert.doesNotMatch(prices.listing.resource, /example-agents\.dev\/v1\/events/);
+});
+
+test("searchRequestForMode passes the next chain, not the leftover demo network", () => {
+  assert.deepEqual(searchRequestForMode("BASE", "ARC-TESTNET"), {
+    demo: false,
+    chain: "BASE",
+  });
+  assert.deepEqual(searchRequestForMode("demo", "ARC-TESTNET"), {
+    demo: true,
+    chain: "ARC-TESTNET",
+  });
 });

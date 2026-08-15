@@ -22,7 +22,7 @@ import {
   removeStep,
 } from "@/lib/composer";
 import { DEMO_FUND_AMOUNT, DEMO_STARTING_BALANCE } from "@/lib/mock-data";
-import { DEFAULT_NETWORK, type AppMode } from "@/lib/networks";
+import { DEFAULT_NETWORK, searchRequestForMode, type AppMode } from "@/lib/networks";
 import type {
   ActivityEntry,
   InspectResult,
@@ -163,13 +163,19 @@ export function DemoApp({
   }, []);
 
   const search = useCallback(
-    async (nextQuery = query, nextCategory = category) => {
+    async (
+      nextQuery = query,
+      nextCategory = category,
+      scope?: { demo?: boolean; chain?: NetworkId },
+    ) => {
+      const demo = scope?.demo ?? demoMode;
+      const chain = scope?.chain ?? network;
       setSearching(true);
       log("search", "SEARCH", nextQuery ? `"${nextQuery}"` : "listing catalog");
       try {
         const result = await api.search({
-          demo: demoMode,
-          chain: network,
+          demo,
+          chain,
           query: nextQuery,
           category: nextCategory || undefined,
         });
@@ -548,12 +554,12 @@ export function DemoApp({
   }
 
   function handleMode(next: AppMode) {
-    const nextDemo = next === "demo";
+    const { demo: nextDemo, chain: nextChain } = searchRequestForMode(next, network);
     setDemoMode(nextDemo);
-    if (!nextDemo) setNetwork(next);
+    if (!nextDemo) setNetwork(nextChain);
     resetSession();
-    log("info", "MODE", nextDemo ? "Demo" : next);
-    void search(query, category);
+    log("info", "MODE", nextDemo ? "Demo" : nextChain);
+    void search(query, category, { demo: nextDemo, chain: nextChain });
     if (nextDemo) reveal(2);
     else setView(1);
   }

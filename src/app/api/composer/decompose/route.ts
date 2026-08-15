@@ -58,9 +58,11 @@ export async function POST(request: Request) {
 
   await sleep(380);
 
+  // Demo fixtures mix Arc-only and Base-only listings. Do not pass
+  // leftover/default cliChain or booth presets collapse onto Arc leftovers.
   const plan = presetId
-    ? decomposePreset(presetId, catalog, network.cliChain)
-    : decomposePrompt(prompt, catalog, network.cliChain);
+    ? decomposePreset(presetId, catalog)
+    : decomposePrompt(prompt, catalog);
 
   if (!plan) {
     return Response.json({ error: "Unknown preset." }, { status: 404 });

@@ -88,3 +88,12 @@ export function getNetwork(id: string | null | undefined): NetworkConfig {
   if (id && isNetworkId(id)) return NETWORKS[id];
   return NETWORKS[DEFAULT_NETWORK];
 }
+
+/** Catalog fetch args for a header mode change — never reuse the previous mode. */
+export function searchRequestForMode(
+  mode: AppMode,
+  currentNetwork: NetworkId,
+): { demo: boolean; chain: NetworkId } {
+  if (mode === "demo") return { demo: true, chain: currentNetwork };
+  return { demo: false, chain: mode };
+}
