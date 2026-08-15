@@ -5,6 +5,7 @@ import {
   isTestnetCliChain,
   parseAcceptedChainsHint,
   pickPayChain,
+  planEcoOnboard,
   type FundedChain,
 } from "@/lib/circle-chains";
 import { parseBalanceUsdc, parseMaybeJson, runCircle } from "@/lib/circle-cli";
@@ -14,7 +15,11 @@ import {
   isSafeJsonPayload,
   normalizeMethod,
 } from "@/lib/circle-safety";
-import { fetchRaw402Accepts, mergeAccepts } from "@/lib/circle-x402";
+import {
+  acceptsFromInspectSummary,
+  fetchRaw402Accepts,
+  mergeAccepts,
+} from "@/lib/circle-x402";
 import { mockPay, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
 import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
@@ -22,7 +27,7 @@ import { isAddress, readJsonBody, readNetwork, wantsDemo } from "@/lib/request";
 import type { PaymentAcceptance } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /**
  * Official buyer path (setup.md + wallet-pay.md):
@@ -125,7 +130,11 @@ export async function POST(request: Request) {
     ? (inspectData?.accepts as PaymentAcceptance[])
     : [];
   const raw402 = await fetchRaw402Accepts(url);
-  const accepts = mergeAccepts(inspectAccepts, raw402);
+  const accepts = mergeAccepts(
+    inspectAccepts,
+    acceptsFromInspectSummary(inspectData),
+    raw402,
+  );
   const method = normalizeMethod(
     (typeof inspectData?.method === "string" && inspectData.method) || methodHint,
   );
@@ -158,6 +167,71 @@ export async function POST(request: Request) {
     );
   }
   let chain = picked?.chain ?? network.cliChain;
+  let gatewayOnboard: { amount: number; chain: string } | undefined;
+  const onboard =
+    !estimateOnly &&
+    planEcoOnboard(accepts, funded, advertised ?? maxAmount, network.environment);
+  if (onboard) {
+    const deposit = await runCircle(
+      [
+        "gateway",
+        "deposit",
+        "--amount",
+        String(onboard.amount),
+        "--address",
+        address,
+        "--chain",
+        onboard.depositChain,
+        "--method",
+        "eco",
+        "--timeout",
+        "90",
+        "--output",
+        "json",
+      ],
+      { timeoutMs: 110_000 },
+    );
+    if (!deposit.ok) {
+      const classified = classifyPayFailure(`${deposit.stderr}\n${deposit.stdout}`);
+      return Response.json(
+        {
+          ok: false,
+          demo: false,
+          url,
+          chain,
+          address,
+          amountUsdc: advertised ?? maxAmount,
+          status: deposit.code ?? 502,
+          paid: false,
+          method,
+          response: deposit.parsed ?? deposit.stdout,
+          error: deposit.stderr || deposit.stdout || "Gateway eco deposit failed.",
+          hint: classified.hint,
+        },
+        { status: 502 },
+      );
+    }
+    chain = onboard.payChain;
+    gatewayOnboard = { amount: onboard.amount, chain: onboard.payChain };
+    for (let i = 0; i < 4; i++) {
+      const gw = await runCircle(
+        [
+          "gateway",
+          "balance",
+          "--address",
+          address,
+          "--chain",
+          onboard.payChain,
+          "--output",
+          "json",
+        ],
+        { timeoutMs: 12_000 },
+      );
+      const ready = (parseBalanceUsdc(gw.parsed, gw.stdout) ?? 0) + 1e-9 >= (advertised ?? maxAmount);
+      if (ready) break;
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+    }
+  }
   if (network.environment === "testnet" && !isTestnetCliChain(chain)) {
     return Response.json(
       {
@@ -326,6 +400,7 @@ export async function POST(request: Request) {
           status: 200,
           paid: true,
           method,
+          gatewayOnboard,
           response:
             afterDeploy.parsed ?? parseMaybeJson(afterDeploy.stdout) ?? afterDeploy.stdout,
         });
@@ -354,6 +429,7 @@ export async function POST(request: Request) {
           status: 200,
           paid: true,
           method,
+          gatewayOnboard,
           response: retry.parsed ?? parseMaybeJson(retry.stdout) ?? retry.stdout,
         });
       }
@@ -409,6 +485,7 @@ export async function POST(request: Request) {
     status: 200,
     paid: true,
     method,
+    gatewayOnboard,
     response: result.parsed ?? parseMaybeJson(result.stdout) ?? result.stdout,
   });
 }
@@ -450,10 +527,11 @@ async function readFundedPools(
   accepts: PaymentAcceptance[],
   preferred: string,
 ): Promise<FundedChain[]> {
-  const chains = new Set<string>([preferred]);
+  const chains = new Set<string>([preferred, "MATIC"]);
   for (const item of accepts) {
     const chain = cliChainFromNetwork(item.network);
     if (chain) chains.add(chain);
+    if (chains.size >= 4) break;
   }
 
   const rows: FundedChain[] = [];

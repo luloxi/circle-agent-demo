@@ -147,6 +147,7 @@ export interface PayResult {
   estimated?: boolean;
   fundsMayHaveMoved?: boolean;
   method?: string;
+  gatewayOnboard?: { amount: number; chain: string };
 }
 
 export type LogLevel = "info" | "ok" | "warn" | "error" | "pay" | "search";

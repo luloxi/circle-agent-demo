@@ -81,6 +81,52 @@ export interface FundedChain {
   gateway: number;
 }
 
+export interface EcoOnboardPlan {
+  depositChain: "BASE";
+  payChain: "MATIC";
+  amount: number;
+}
+
+const ECO_FEE_USDC = 0.03;
+const ECO_SLACK_USDC = 0.02;
+const ECO_MIN_DEPOSIT = 0.25;
+const ECO_HEADROOM = 0.5;
+
+/** Size a one-time eco deposit. Never drain vanilla; return null if too poor. */
+export function sizeEcoDeposit(vanillaUsdc: number, priceUsdc: number): number | null {
+  if (!(vanillaUsdc > 0) || !(priceUsdc >= 0)) return null;
+  const floor = Math.max(priceUsdc + ECO_FEE_USDC + ECO_SLACK_USDC, ECO_MIN_DEPOSIT);
+  const cap = vanillaUsdc * ECO_HEADROOM;
+  if (cap + 1e-9 < floor) return null;
+  return Number(Math.min(Math.max(floor, ECO_MIN_DEPOSIT), cap).toFixed(6));
+}
+
+/**
+ * Official first-call onboarding: BASE vanilla → eco Gateway → pay MATIC.
+ * Used when the seller accepts Polygon Gateway and the wallet has no Gateway.
+ */
+export function planEcoOnboard(
+  accepts: PaymentAcceptance[],
+  funded: FundedChain[] | undefined,
+  priceUsdc: number,
+  environment?: "testnet" | "mainnet",
+): EcoOnboardPlan | null {
+  if (environment === "testnet") return null;
+  const hasMaticGateway = accepts.some(
+    (entry) => cliChainFromNetwork(entry.network) === "MATIC" && isGatewayAcceptance(entry),
+  );
+  if (!hasMaticGateway) return null;
+  const gwReady = (funded ?? []).some((row) => row.gateway + 1e-9 >= priceUsdc);
+  if (gwReady) return null;
+  const vanilla =
+    funded?.find((row) => row.chain === "BASE")?.vanilla ??
+    funded?.find((row) => row.chain === "BASE-SEPOLIA")?.vanilla ??
+    0;
+  const amount = sizeEcoDeposit(vanilla, priceUsdc);
+  if (amount == null) return null;
+  return { depositChain: "BASE", payChain: "MATIC", amount };
+}
+
 export function pickPayChain(
   accepts: PaymentAcceptance[],
   preferredCliChain?: string,
@@ -126,14 +172,17 @@ export function pickPayChain(
     if (gwReady) return { chain: gwReady.chain, gateway: true };
 
     const vanillaReady = mapped.find((row) => {
+      if (row.gateway) return false;
       const pool = funded.find((f) => f.chain === row.chain);
       return (pool?.vanilla ?? 0) + 1e-9 >= price;
     });
-    if (vanillaReady) return { chain: vanillaReady.chain, gateway: vanillaReady.gateway };
+    if (vanillaReady) return { chain: vanillaReady.chain, gateway: false };
   }
 
   if (preferredCliChain) {
     const preferred = preferredCliChain.toUpperCase();
+    const vanillaHit = mapped.find((row) => row.chain === preferred && !row.gateway);
+    if (vanillaHit) return { chain: vanillaHit.chain, gateway: false };
     const hit = mapped.find((row) => row.chain === preferred);
     if (hit) return { chain: hit.chain, gateway: hit.gateway };
   }
@@ -171,8 +220,8 @@ export function classifyPayFailure(text: string): { hint: string; retryable: boo
   }
   if (/No Gateway balance found/i.test(blob)) {
     return {
-      hint: "This seller wants Circle Gateway. Deposit via `circle gateway deposit --method eco` (lands on Polygon → pay --chain MATIC), then retry.",
-      retryable: false,
+      hint: "This seller wants Circle Gateway. The app will eco-deposit BASE USDC to Polygon Gateway and retry with --chain MATIC.",
+      retryable: true,
     };
   }
   if (/Insufficient Gateway balance/i.test(blob)) {

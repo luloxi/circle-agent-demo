@@ -470,6 +470,13 @@ export function DemoApp({
           maxAmount: Math.max(step.priceUsdc, 0.001),
           method: step.listing.metadata?.method,
         });
+        if (result.gatewayOnboard) {
+          log(
+            "ok",
+            "FUND",
+            `Eco-deposited ${result.gatewayOnboard.amount} USDC to Gateway · paying on ${result.gatewayOnboard.chain}`,
+          );
+        }
         const paidAmount = result.amountUsdc;
         spent = Number((spent + paidAmount).toFixed(6));
         if (demoMode && liveBalance.value != null) {

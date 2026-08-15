@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { pickPayChain, planEcoOnboard, sizeEcoDeposit } from "./circle-chains";
+import {
+  acceptsFromInspectSummary,
+  parsePaymentRequired,
+} from "./circle-x402";
+import type { PaymentAcceptance } from "./types";
+
+const GW_BASE: PaymentAcceptance = {
+  scheme: "exact",
+  network: "eip155:8453",
+  asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  amount: "8000",
+  payTo: "0xBd7b9f3e0CD3E1f6e698D0eeBb99F96E093BdeE3",
+  extra: { name: "GatewayWalletBatched" },
+};
+const GW_MATIC: PaymentAcceptance = {
+  ...GW_BASE,
+  network: "eip155:137",
+  asset: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+};
+const VANILLA_BASE: PaymentAcceptance = {
+  scheme: "exact",
+  network: "eip155:8453",
+  asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  amount: "8000",
+  payTo: "0xBd7b9f3e0CD3E1f6e698D0eeBb99F96E093BdeE3",
+  extra: { name: "USD Coin" },
+};
+
+test("parsePaymentRequired reads base64 PAYMENT-REQUIRED accepts", () => {
+  const payload = Buffer.from(
+    JSON.stringify({ accepts: [GW_BASE, GW_MATIC] }),
+    "utf8",
+  ).toString("base64");
+  const accepts = parsePaymentRequired(payload);
+  assert.equal(accepts.length, 2);
+  assert.equal(accepts[1].network, "eip155:137");
+  assert.equal(accepts[0].extra?.name, "GatewayWalletBatched");
+});
+
+test("acceptsFromInspectSummary expands Gateway chains including Polygon", () => {
+  const accepts = acceptsFromInspectSummary({
+    scheme: "GatewayWalletBatched",
+    seller: GW_BASE.payTo,
+    chains: ["eip155:8453", "eip155:137"],
+  });
+  assert.equal(accepts.length, 2);
+  assert.equal(accepts[1].network, "eip155:137");
+  assert.equal(accepts[0].extra?.name, "GatewayWalletBatched");
+});
+
+test("pickPayChain with only BASE vanilla does not mark Gateway as ready", () => {
+  const picked = pickPayChain(
+    [GW_BASE, GW_MATIC, VANILLA_BASE],
+    "BASE",
+    [{ chain: "BASE", vanilla: 1, gateway: 0 }],
+    0.008,
+    "mainnet",
+  );
+  assert.ok(picked);
+  assert.equal(picked.chain, "BASE");
+  assert.equal(picked.gateway, false);
+});
+
+test("planEcoOnboard deposits BASE vanilla to pay MATIC when Gateway is empty", () => {
+  const plan = planEcoOnboard(
+    [GW_BASE, GW_MATIC],
+    [{ chain: "BASE", vanilla: 1, gateway: 0 }],
+    0.008,
+    "mainnet",
+  );
+  assert.ok(plan);
+  assert.equal(plan.depositChain, "BASE");
+  assert.equal(plan.payChain, "MATIC");
+  assert.ok(plan.amount >= 0.25);
+  assert.ok(plan.amount <= 0.5);
+});
+
+test("planEcoOnboard is skipped when Gateway is already funded", () => {
+  const plan = planEcoOnboard(
+    [GW_BASE, GW_MATIC],
+    [{ chain: "MATIC", vanilla: 0, gateway: 0.5 }],
+    0.008,
+    "mainnet",
+  );
+  assert.equal(plan, null);
+});
+
+test("sizeEcoDeposit refuses to drain a tiny vanilla balance", () => {
+  assert.equal(sizeEcoDeposit(0.08, 0.008), null);
+  assert.ok((sizeEcoDeposit(1, 0.008) ?? 0) <= 0.5);
+});
