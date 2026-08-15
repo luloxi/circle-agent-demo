@@ -571,7 +571,7 @@ export function DemoApp({
     setSessionSpent((s) => Number((s + spent).toFixed(6)));
     setHistory((prev) => [
       {
-        id: working.id,
+        id: `${working.id}-${Date.now().toString(36)}`,
         title: working.title,
         prompt: working.prompt,
         spentUsdc: spent,

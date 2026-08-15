@@ -111,7 +111,7 @@ export function CostExplorer({
       {history.length > 0 ? (
         <ul className="mt-3 space-y-1 border-t border-white/6 pt-3">
           {history.map((item) => (
-            <li key={item.id}>
+            <li key={`${item.id}-${item.ts}`}>
               <button
                 type="button"
                 onClick={() => onReplay(item)}
