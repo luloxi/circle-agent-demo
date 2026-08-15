@@ -235,10 +235,16 @@ export function resolvePayRequest(
     return {
       url: "https://agents.allium.so/api/v1/developer/prices",
       method: "POST",
-      data: JSON.stringify({
-        chain: "ethereum",
-        token_address: "0x0000000000000000000000000000000000000000",
-      }),
+      data: JSON.stringify([
+        {
+          chain: "ethereum",
+          token_address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        },
+        {
+          chain: "ethereum",
+          token_address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+        },
+      ]),
     };
   }
 

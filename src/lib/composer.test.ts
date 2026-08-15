@@ -123,8 +123,9 @@ test("resolvePayRequest uses Allium POST for prices", () => {
   const req = resolvePayRequest(BASE_PRICES, { role: "prices" });
   assert.equal(req.method, "POST");
   assert.match(req.url, /allium\.so/);
-  const body = JSON.parse(req.data ?? "{}");
-  assert.equal(body.chain, "ethereum");
+  const body = JSON.parse(req.data ?? "[]");
+  assert.ok(Array.isArray(body));
+  assert.equal(body[0].chain, "ethereum");
 });
 
 test("resolvePayRequest uses Exa POST for live search", () => {
