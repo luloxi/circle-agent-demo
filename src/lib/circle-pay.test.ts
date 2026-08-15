@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pickPayChain, planEcoOnboard, sizeEcoDeposit } from "./circle-chains";
-import { gatewayNeedsLoad } from "./circle-gateway";
+import { gatewayNeedsLoad, pickPayChain, planEcoOnboard, sizeEcoDeposit } from "./circle-chains";
 import {
   acceptsFromInspectSummary,
   parsePaymentRequired,

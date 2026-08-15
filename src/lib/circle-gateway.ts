@@ -13,10 +13,6 @@ export function gatewayChainsFor(cliChain: string): string[] {
   return [...new Set(chains)];
 }
 
-export function gatewayNeedsLoad(gatewayUsdc: number | null | undefined): boolean {
-  return (gatewayUsdc ?? 0) + 1e-9 < GATEWAY_MIN_DEPOSIT;
-}
-
 export async function readMaxGatewayUsdc(
   address: string,
   chains: string[],

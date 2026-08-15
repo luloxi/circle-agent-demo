@@ -8,8 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UsdcAmount } from "@/components/usdc-amount";
-import { GATEWAY_MIN_DEPOSIT, sizeEcoDeposit } from "@/lib/circle-chains";
-import { gatewayNeedsLoad } from "@/lib/circle-gateway";
+import { GATEWAY_MIN_DEPOSIT, gatewayNeedsLoad, sizeEcoDeposit } from "@/lib/circle-chains";
 import { cn } from "@/lib/utils";
 
 export const GATEWAY_TIP =

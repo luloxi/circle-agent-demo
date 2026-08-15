@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CatalogEscape } from "@/components/catalog-escape";
 import { GatewayStrip } from "@/components/gateway-strip";
 import { UsdcAmount } from "@/components/usdc-amount";
-import { gatewayNeedsLoad } from "@/lib/circle-gateway";
+import { gatewayNeedsLoad } from "@/lib/circle-chains";
 import { serviceName } from "@/lib/format";
 import { qualityLabel } from "@/lib/composer";
 import type { FlowStep, NetworkId, QualityTier, QueryPlan } from "@/lib/types";

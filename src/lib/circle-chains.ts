@@ -92,6 +92,10 @@ const ECO_SLACK_USDC = 0.02;
 /** Circle CLI: `Gateway deposit amount must be at least 0.5 USDC`. */
 export const GATEWAY_MIN_DEPOSIT = 0.5;
 
+export function gatewayNeedsLoad(gatewayUsdc: number | null | undefined): boolean {
+  return (gatewayUsdc ?? 0) + 1e-9 < GATEWAY_MIN_DEPOSIT;
+}
+
 /** Size a one-time eco deposit. Never drain vanilla; return null if too poor. */
 export function sizeEcoDeposit(vanillaUsdc: number, priceUsdc: number): number | null {
   if (!(vanillaUsdc > 0) || !(priceUsdc >= 0)) return null;
