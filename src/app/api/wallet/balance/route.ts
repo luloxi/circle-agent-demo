@@ -1,4 +1,5 @@
 import { parseBalanceUsdc, runCircle } from "@/lib/circle-cli";
+import { gatewayChainsFor, readMaxGatewayUsdc } from "@/lib/circle-gateway";
 import { DEMO_STARTING_BALANCE, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
 import { isAddress, readNetwork, wantsDemo } from "@/lib/request";
@@ -18,11 +19,17 @@ export async function GET(request: Request) {
       override != null && Number.isFinite(Number(override))
         ? Number(override)
         : DEMO_STARTING_BALANCE;
+    const gatewayOverride = searchParams.get("demoGateway");
+    const gatewayUsdc =
+      gatewayOverride != null && Number.isFinite(Number(gatewayOverride))
+        ? Number(gatewayOverride)
+        : 0;
     return Response.json({
       demo: true,
       address: address || "0xA93d4E8c1B7f2a90C6eD4b8F0A12E9d5C3f2C1a4",
       chain: network.cliChain,
       balanceUsdc,
+      gatewayUsdc,
       nativeSymbol: null,
       nativeAmount: null,
     });
@@ -63,11 +70,13 @@ export async function GET(request: Request) {
     );
   }
 
+  const gatewayUsdc = await readMaxGatewayUsdc(address, gatewayChainsFor(network.cliChain));
   return Response.json({
     demo: false,
     address,
     chain: network.cliChain,
     balanceUsdc: parseBalanceUsdc(result.parsed, result.stdout),
+    gatewayUsdc: gatewayUsdc ?? 0,
     nativeSymbol: null,
     nativeAmount: null,
     raw: result.parsed ?? result.stdout,

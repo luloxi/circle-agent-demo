@@ -8,6 +8,7 @@ import {
   parseWallets,
   runCircle,
 } from "@/lib/circle-cli";
+import { gatewayChainsFor, readMaxGatewayUsdc } from "@/lib/circle-gateway";
 import { DEMO_STARTING_BALANCE, DEMO_WALLET } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
 import { readNetwork, wantsDemo } from "@/lib/request";
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
       wallets: [{ ...DEMO_WALLET, chain: network.cliChain }],
       wallet: { ...DEMO_WALLET, chain: network.cliChain },
       balanceUsdc: DEMO_STARTING_BALANCE,
+      gatewayBalanceUsdc: 0,
       needsAuth: false,
       needsTerms: false,
       hint: "Demo Mode — mocked agent wallet. Flip the toggle off to use the Circle CLI on this machine.",
@@ -148,23 +150,9 @@ export async function GET(request: Request) {
     balanceUsdc = parseBalanceUsdc(bal.parsed, bal.stdout);
   }
 
-  let gatewayBalanceUsdc: number | null = null;
-  if (wallet) {
-    const gw = await runCircle(
-      [
-        "gateway",
-        "balance",
-        "--address",
-        wallet.address,
-        "--chain",
-        network.cliChain,
-        "--output",
-        "json",
-      ],
-      { timeoutMs: 15_000 },
-    );
-    if (gw.ok) gatewayBalanceUsdc = parseBalanceUsdc(gw.parsed, gw.stdout);
-  }
+  const gatewayBalanceUsdc = wallet
+    ? await readMaxGatewayUsdc(wallet.address, gatewayChainsFor(network.cliChain))
+    : null;
 
   const payload: WalletStatusPayload = {
     demo: false,

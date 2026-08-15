@@ -10,7 +10,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CatalogEscape } from "@/components/catalog-escape";
+import { GatewayStrip } from "@/components/gateway-strip";
 import { UsdcAmount } from "@/components/usdc-amount";
+import { gatewayNeedsLoad } from "@/lib/circle-gateway";
 import { serviceName } from "@/lib/format";
 import { qualityLabel } from "@/lib/composer";
 import type { FlowStep, NetworkId, QualityTier, QueryPlan } from "@/lib/types";
@@ -33,6 +35,10 @@ export function FlowTimeline({
   onAlternative,
   onDemo,
   onNetwork,
+  gatewayUsdc,
+  vanillaUsdc,
+  gatewayLoading,
+  onLoadGateway,
 }: {
   plan: QueryPlan;
   executing: boolean;
@@ -42,7 +48,12 @@ export function FlowTimeline({
   onAlternative: (stepId: string, quality: QualityTier) => void;
   onDemo?: () => void;
   onNetwork?: (id: NetworkId) => void;
+  gatewayUsdc?: number | null;
+  vanillaUsdc?: number | null;
+  gatewayLoading?: boolean;
+  onLoadGateway?: () => void;
 }) {
+  const showGateway = Boolean(onLoadGateway) && gatewayNeedsLoad(gatewayUsdc);
   return (
     <div className="glass flex h-full min-h-0 flex-col rounded-2xl p-4 sm:p-5">
       <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
@@ -79,12 +90,24 @@ export function FlowTimeline({
       </ol>
       )}
 
+      {plan.steps.length > 0 && showGateway && onLoadGateway ? (
+        <div className="mt-3 shrink-0">
+          <GatewayStrip
+            compact
+            gatewayUsdc={gatewayUsdc ?? 0}
+            vanillaUsdc={vanillaUsdc ?? 0}
+            loading={gatewayLoading}
+            onLoad={onLoadGateway}
+          />
+        </div>
+      ) : null}
+
       {plan.steps.length > 0 ? (
         <Button
           size="lg"
           className="mt-3 w-full shrink-0"
           onClick={onExecute}
-          disabled={executing}
+          disabled={executing || gatewayLoading}
         >
           {executing ? <Loader2Icon className="animate-spin" /> : <PlayIcon />}
           {executing ? "Running" : "Execute"}

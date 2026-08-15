@@ -8,6 +8,7 @@ import {
   parseWallets,
   runCircle,
 } from "@/lib/circle-cli";
+import { gatewayChainsFor, readMaxGatewayUsdc } from "@/lib/circle-gateway";
 import { DEMO_STARTING_BALANCE, DEMO_WALLET, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
 import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
       wallets: [{ ...DEMO_WALLET, chain: network.cliChain }],
       wallet: { ...DEMO_WALLET, chain: network.cliChain },
       balanceUsdc: DEMO_STARTING_BALANCE,
+      gatewayBalanceUsdc: 0,
       needsAuth: false,
       needsTerms: false,
       hint: "Demo wallet connected. Fund, search, and pay will succeed with mocked USDC.",
@@ -157,6 +159,7 @@ export async function POST(request: Request) {
 
   const wallet = wallets[0] ?? null;
   let balanceUsdc: number | null = null;
+  let gatewayBalanceUsdc: number | null = null;
   if (wallet) {
     const bal = await runCircle(
       [
@@ -172,6 +175,10 @@ export async function POST(request: Request) {
       { timeoutMs: 15_000 },
     );
     balanceUsdc = parseBalanceUsdc(bal.parsed, bal.stdout);
+    gatewayBalanceUsdc = await readMaxGatewayUsdc(
+      wallet.address,
+      gatewayChainsFor(network.cliChain),
+    );
   }
 
   const payload: WalletStatusPayload = {
@@ -183,6 +190,7 @@ export async function POST(request: Request) {
     wallets,
     wallet,
     balanceUsdc,
+    gatewayBalanceUsdc,
     needsAuth: false,
     needsTerms: false,
     hint: wallet

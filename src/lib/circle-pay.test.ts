@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pickPayChain, planEcoOnboard, sizeEcoDeposit } from "./circle-chains";
+import { gatewayNeedsLoad } from "./circle-gateway";
 import {
   acceptsFromInspectSummary,
   parsePaymentRequired,
@@ -91,4 +92,11 @@ test("sizeEcoDeposit uses the 0.5 USDC Gateway minimum", () => {
   assert.equal(sizeEcoDeposit(0.08, 0.008), null);
   assert.equal(sizeEcoDeposit(0.5, 0.008), null);
   assert.equal(sizeEcoDeposit(1, 0.008), 0.5);
+});
+
+test("gatewayNeedsLoad is true until the 0.5 USDC floor is met", () => {
+  assert.equal(gatewayNeedsLoad(null), true);
+  assert.equal(gatewayNeedsLoad(0), true);
+  assert.equal(gatewayNeedsLoad(0.25), true);
+  assert.equal(gatewayNeedsLoad(0.5), false);
 });

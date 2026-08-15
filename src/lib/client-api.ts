@@ -87,19 +87,41 @@ export const api = {
       body: JSON.stringify({ accept: true }),
     }),
 
-  balance: (demo: boolean, chain: NetworkId, address: string, demoBalance?: number) => {
+  balance: (
+    demo: boolean,
+    chain: NetworkId,
+    address: string,
+    demoBalance?: number,
+    demoGateway?: number,
+  ) => {
     const qs = new URLSearchParams({
       demo: withDemo(demo),
       chain,
       address,
     });
     if (demoBalance != null) qs.set("demoBalance", String(demoBalance));
+    if (demoGateway != null) qs.set("demoGateway", String(demoGateway));
     return request<{
       balanceUsdc: number | null;
+      gatewayUsdc?: number | null;
       nativeSymbol?: string | null;
       nativeAmount?: number | null;
     }>(`/api/wallet/balance?${qs}`);
   },
+
+  loadGateway: (demo: boolean, chain: NetworkId, address: string, vanillaUsdc?: number) =>
+    request<{
+      ok: boolean;
+      demo: boolean;
+      amount: number;
+      chain?: string;
+      gatewayUsdc: number;
+      balanceUsdc?: number;
+      message?: string;
+    }>("/api/wallet/gateway", {
+      method: "POST",
+      body: JSON.stringify({ demo, chain, address, vanillaUsdc }),
+    }),
 
   fund: (demo: boolean, chain: NetworkId, address: string) =>
     request<{

@@ -223,7 +223,7 @@ export function classifyPayFailure(text: string): { hint: string; retryable: boo
   }
   if (/No Gateway balance found/i.test(blob)) {
     return {
-      hint: "This seller wants Circle Gateway. The app will eco-deposit BASE USDC to Polygon Gateway and retry with --chain MATIC.",
+      hint: "This seller wants Circle Gateway. Load Gateway in Wallet (or on Run) — 0.50 USDC eco deposit to Polygon.",
       retryable: true,
     };
   }

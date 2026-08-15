@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CatalogEscape } from "@/components/catalog-escape";
+import { GatewayStrip } from "@/components/gateway-strip";
 import { UsdcAmount } from "@/components/usdc-amount";
 import { formatTime, truncateAddress } from "@/lib/format";
 import { getNetwork } from "@/lib/networks";
@@ -35,11 +36,14 @@ export function WalletPanel({
   network,
   wallet,
   balanceUsdc,
+  gatewayUsdc,
   connecting,
   funding,
+  gatewayLoading,
   activity,
   onConnect,
   onFund,
+  onLoadGateway,
   onRefresh,
   onDisconnect,
   onClearActivity,
@@ -51,12 +55,15 @@ export function WalletPanel({
   wallet: WalletInfo | null;
   email: string | null;
   balanceUsdc: number | null;
+  gatewayUsdc: number | null;
   connecting: boolean;
   funding: boolean;
+  gatewayLoading?: boolean;
   funded: boolean;
   activity: ActivityEntry[];
   onConnect: () => void;
   onFund: () => void;
+  onLoadGateway: () => void;
   onRefresh: () => void;
   onDisconnect: () => void;
   onClearActivity: () => void;
@@ -157,6 +164,14 @@ export function WalletPanel({
               <div className="text-right text-[11px] tracking-[0.16em] text-white/40 uppercase">
                 {net.shortLabel}
               </div>
+            </div>
+            <div className="relative mt-4 border-t border-white/8 pt-3">
+              <GatewayStrip
+                gatewayUsdc={gatewayUsdc}
+                vanillaUsdc={balanceUsdc}
+                loading={gatewayLoading}
+                onLoad={onLoadGateway}
+              />
             </div>
           </>
         )}

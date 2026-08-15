@@ -61,6 +61,8 @@ export function DemoApp({
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [balanceUsdc, setBalanceUsdc] = useState<number | null>(null);
+  const [gatewayUsdc, setGatewayUsdc] = useState<number | null>(null);
+  const [gatewayLoading, setGatewayLoading] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [funding, setFunding] = useState(false);
@@ -128,6 +130,7 @@ export function DemoApp({
     setEmail(payload.email);
     const bal = payload.balanceUsdc ?? (payload.wallet ? 0 : null);
     setBalanceUsdc(bal);
+    setGatewayUsdc(payload.gatewayBalanceUsdc ?? 0);
     setFunded((bal ?? 0) > 0);
     if (payload.wallet) {
       log("ok", "AUTH", `Connected ${payload.wallet.address} on ${payload.wallet.chain}`);
@@ -153,6 +156,7 @@ export function DemoApp({
     setWallet(null);
     setEmail(null);
     setBalanceUsdc(null);
+    setGatewayUsdc(null);
     setFunded(false);
     setSelected(null);
     setInspect(null);
@@ -293,6 +297,8 @@ export function DemoApp({
 
   const balanceRef = useRef(balanceUsdc);
   balanceRef.current = balanceUsdc;
+  const gatewayRef = useRef(gatewayUsdc);
+  gatewayRef.current = gatewayUsdc;
 
   const handleRefresh = useCallback(async (opts?: { silent?: boolean }) => {
     if (!wallet?.address) return null;
@@ -302,6 +308,7 @@ export function DemoApp({
         network,
         wallet.address,
         demoMode ? (balanceRef.current ?? undefined) : undefined,
+        demoMode ? (gatewayRef.current ?? undefined) : undefined,
       );
       if (bal.balanceUsdc != null) {
         setBalanceUsdc(bal.balanceUsdc);
@@ -309,6 +316,9 @@ export function DemoApp({
         if (!opts?.silent) {
           log("ok", "BAL", `Balance ${bal.balanceUsdc.toFixed(2)} USDC`);
         }
+      }
+      if (bal.gatewayUsdc != null) {
+        setGatewayUsdc(bal.gatewayUsdc);
       }
       return bal.balanceUsdc;
     } catch (err) {
@@ -318,6 +328,34 @@ export function DemoApp({
       return null;
     }
   }, [demoMode, log, network, wallet?.address]);
+
+  async function handleLoadGateway() {
+    if (!wallet?.address && !demoMode) {
+      log("warn", "FUND", "Connect a wallet first.");
+      return;
+    }
+    setGatewayLoading(true);
+    log("info", "FUND", "Loading Gateway (eco deposit 0.50 USDC)…");
+    try {
+      const result = await api.loadGateway(
+        demoMode,
+        network,
+        wallet?.address ?? "",
+        balanceUsdc ?? undefined,
+      );
+      if (result.gatewayUsdc != null) setGatewayUsdc(result.gatewayUsdc);
+      if (result.balanceUsdc != null) {
+        setBalanceUsdc(result.balanceUsdc);
+        setFunded(result.balanceUsdc > 0);
+      }
+      log("ok", "FUND", result.message ?? `Gateway ${result.amount} USDC`);
+      if (!demoMode) await handleRefresh({ silent: true });
+    } catch (err) {
+      log("error", "FUND", err instanceof Error ? err.message : "Gateway load failed");
+    } finally {
+      setGatewayLoading(false);
+    }
+  }
 
   const walletAddress = wallet?.address ?? "";
   const liveEmpty = (balanceUsdc ?? 0) <= 0 ? 1 : 0;
@@ -642,12 +680,15 @@ export function DemoApp({
                 wallet={wallet}
                 email={email}
                 balanceUsdc={balanceUsdc}
+                gatewayUsdc={gatewayUsdc}
                 connecting={connecting}
                 funding={funding}
+                gatewayLoading={gatewayLoading}
                 funded={funded}
                 activity={logs}
                 onConnect={() => void handleConnect()}
                 onFund={() => void handleFund()}
+                onLoadGateway={() => void handleLoadGateway()}
                 onRefresh={() => void handleRefresh()}
                 onDisconnect={() => void handleDisconnect()}
                 onClearActivity={() => setLogs([])}
@@ -711,6 +752,10 @@ export function DemoApp({
                   }
                   onDemo={() => handleDemoMode(true)}
                   onNetwork={handleNetwork}
+                  gatewayUsdc={gatewayUsdc}
+                  vanillaUsdc={balanceUsdc}
+                  gatewayLoading={gatewayLoading}
+                  onLoadGateway={() => void handleLoadGateway()}
                 />
                 <CostExplorer
                   plan={plan}
@@ -743,6 +788,10 @@ export function DemoApp({
                   }
                   onDemo={() => handleDemoMode(true)}
                   onNetwork={handleNetwork}
+                  gatewayUsdc={gatewayUsdc}
+                  vanillaUsdc={balanceUsdc}
+                  gatewayLoading={gatewayLoading}
+                  onLoadGateway={() => void handleLoadGateway()}
                 />
               ) : (
                 <EmptyStage />

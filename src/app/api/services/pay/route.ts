@@ -167,70 +167,33 @@ export async function POST(request: Request) {
     );
   }
   let chain = picked?.chain ?? network.cliChain;
-  let gatewayOnboard: { amount: number; chain: string } | undefined;
-  const onboard =
-    !estimateOnly &&
-    planEcoOnboard(accepts, funded, advertised ?? maxAmount, network.environment);
-  if (onboard) {
-    const deposit = await runCircle(
-      [
-        "gateway",
-        "deposit",
-        "--amount",
-        String(onboard.amount),
-        "--address",
+  const needsOnboard = planEcoOnboard(
+    accepts,
+    funded,
+    advertised ?? maxAmount,
+    network.environment,
+  );
+  if (needsOnboard && !estimateOnly) {
+    return Response.json(
+      {
+        ok: false,
+        demo: false,
+        url,
+        chain,
         address,
-        "--chain",
-        onboard.depositChain,
-        "--method",
-        "eco",
-        "--timeout",
-        "90",
-        "--output",
-        "json",
-      ],
-      { timeoutMs: 110_000 },
+        amountUsdc: advertised ?? maxAmount,
+        status: 409,
+        paid: false,
+        method,
+        response: null,
+        error: "Load Gateway first.",
+        hint: `This seller charges Circle Gateway. Use Load ${needsOnboard.amount.toFixed(2)} in Wallet or on Run (eco deposit to Polygon).`,
+      },
+      { status: 409 },
     );
-    if (!deposit.ok) {
-      const classified = classifyPayFailure(`${deposit.stderr}\n${deposit.stdout}`);
-      return Response.json(
-        {
-          ok: false,
-          demo: false,
-          url,
-          chain,
-          address,
-          amountUsdc: advertised ?? maxAmount,
-          status: deposit.code ?? 502,
-          paid: false,
-          method,
-          response: deposit.parsed ?? deposit.stdout,
-          error: deposit.stderr || deposit.stdout || "Gateway eco deposit failed.",
-          hint: classified.hint,
-        },
-        { status: 502 },
-      );
-    }
-    chain = onboard.payChain;
-    gatewayOnboard = { amount: onboard.amount, chain: onboard.payChain };
-    for (let i = 0; i < 4; i++) {
-      const gw = await runCircle(
-        [
-          "gateway",
-          "balance",
-          "--address",
-          address,
-          "--chain",
-          onboard.payChain,
-          "--output",
-          "json",
-        ],
-        { timeoutMs: 12_000 },
-      );
-      const ready = (parseBalanceUsdc(gw.parsed, gw.stdout) ?? 0) + 1e-9 >= (advertised ?? maxAmount);
-      if (ready) break;
-      await new Promise((resolve) => setTimeout(resolve, 4000));
-    }
+  }
+  if (needsOnboard) {
+    chain = needsOnboard.payChain;
   }
   if (network.environment === "testnet" && !isTestnetCliChain(chain)) {
     return Response.json(
@@ -400,7 +363,6 @@ export async function POST(request: Request) {
           status: 200,
           paid: true,
           method,
-          gatewayOnboard,
           response:
             afterDeploy.parsed ?? parseMaybeJson(afterDeploy.stdout) ?? afterDeploy.stdout,
         });
@@ -429,7 +391,6 @@ export async function POST(request: Request) {
           status: 200,
           paid: true,
           method,
-          gatewayOnboard,
           response: retry.parsed ?? parseMaybeJson(retry.stdout) ?? retry.stdout,
         });
       }
@@ -485,7 +446,6 @@ export async function POST(request: Request) {
     status: 200,
     paid: true,
     method,
-    gatewayOnboard,
     response: result.parsed ?? parseMaybeJson(result.stdout) ?? result.stdout,
   });
 }
