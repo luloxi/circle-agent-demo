@@ -28,7 +28,7 @@ export function CostExplorer({
   const over = quoted > spendLimit || sessionSpent + quoted > spendLimit;
 
   return (
-    <div className="glass flex h-full min-h-0 flex-col overflow-auto rounded-2xl p-4 sm:p-5">
+    <div className="glass flex min-h-0 flex-col overflow-auto rounded-2xl p-4 md:h-full sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] tracking-[0.16em] text-muted-foreground uppercase">

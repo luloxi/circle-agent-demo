@@ -60,18 +60,18 @@ export function FaqPage() {
             alt=""
             width={1600}
             height={900}
-            className="h-[22rem] w-full object-cover sm:h-[26rem]"
+            className="h-[12rem] w-full object-cover sm:h-[26rem]"
             priority
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#070b16] via-[#070b16]/55 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-6 sm:p-8">
+          <div className="absolute inset-x-0 bottom-0 p-4 sm:p-8">
             <p className="text-[11px] tracking-[0.22em] text-cyan uppercase">
               Arc hackathon · Circle Agent Stack
             </p>
-            <h1 className="font-heading mt-2 max-w-2xl text-3xl tracking-tight sm:text-4xl">
+            <h1 className="font-heading mt-2 max-w-2xl text-2xl tracking-tight sm:text-4xl">
               An agent that pays for what it needs.
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/75">
+            <p className="mt-2 hidden max-w-xl text-sm leading-relaxed text-white/75 sm:mt-3 sm:block">
               Agent Query Composer is a buyer-side demo: decompose a query, price
               each Marketplace hop in USDC, settle nanopayments, assemble the answer.
             </p>

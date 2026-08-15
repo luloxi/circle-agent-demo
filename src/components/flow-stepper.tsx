@@ -37,14 +37,14 @@ export function FlowStepper({
   unlocked: StageId;
 }) {
   return (
-    <ol className="relative grid grid-cols-5">
+    <ol className="relative grid shrink-0 grid-cols-5">
       <span
         aria-hidden
-        className="absolute top-5 right-[10%] left-[10%] h-px bg-white/8"
+        className="absolute top-4 right-[10%] left-[10%] h-px bg-white/8 sm:top-5"
       />
       <span
         aria-hidden
-        className="absolute top-5 left-[10%] h-px bg-gradient-to-r from-cyan/80 via-violet/70 to-cyan/40 transition-[width] duration-700"
+        className="absolute top-4 left-[10%] h-px bg-gradient-to-r from-cyan/80 via-violet/70 to-cyan/40 transition-[width] duration-700 sm:top-5"
         style={{
           width: `${Math.max(0, Math.min(1, (current - 1) / 4)) * 80}%`,
         }}
@@ -60,7 +60,7 @@ export function FlowStepper({
               type="button"
               onClick={() => open && onView(stage.id)}
               className={cn(
-                "relative flex cursor-pointer flex-col items-center gap-1.5",
+                "relative flex min-h-11 cursor-pointer flex-col items-center gap-1 sm:min-h-0 sm:gap-1.5",
                 !open && "opacity-40",
               )}
               aria-disabled={!open}
@@ -69,7 +69,7 @@ export function FlowStepper({
             >
               <span
                 className={cn(
-                  "relative flex size-9 items-center justify-center rounded-full border transition-all duration-300",
+                  "relative flex size-8 items-center justify-center rounded-full border transition-all duration-300 sm:size-9",
                   done && "border-transparent bg-cyan text-[#071018]",
                   !done &&
                     active &&
@@ -89,7 +89,7 @@ export function FlowStepper({
               </span>
               <span
                 className={cn(
-                  "text-[10px] tracking-[0.14em] uppercase",
+                  "text-[9px] tracking-wide uppercase sm:text-[10px] sm:tracking-[0.14em]",
                   active || done ? "text-foreground/80" : "text-muted-foreground/70",
                 )}
               >

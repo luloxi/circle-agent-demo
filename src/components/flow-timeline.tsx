@@ -58,10 +58,10 @@ export function FlowTimeline({
   const showGateway =
     Boolean(onLoadGateway) && gatewayNeedsLoad(gatewayUsdc, Math.max(plan.estimatedTotal, 0.01));
   return (
-    <div className="glass flex h-full min-h-0 flex-col rounded-2xl p-4 sm:p-5">
-      <div className="mb-3 flex shrink-0 items-start justify-between gap-3">
-        <h2 className="font-heading text-lg tracking-tight">{plan.title}</h2>
-        <UsdcAmount amount={plan.estimatedTotal} size="lg" />
+    <div className="glass flex min-h-0 flex-col rounded-2xl p-4 md:h-full sm:p-5">
+      <div className="mb-3 flex shrink-0 items-start justify-between gap-2 sm:gap-3">
+        <h2 className="font-heading min-w-0 text-base tracking-tight sm:text-lg">{plan.title}</h2>
+        <UsdcAmount amount={plan.estimatedTotal} size="lg" className="shrink-0" />
       </div>
 
       {plan.steps.length === 0 && (plan.note || (onDemo && onNetwork && network)) ? (
@@ -112,7 +112,7 @@ export function FlowTimeline({
       {plan.steps.length > 0 ? (
         <Button
           size="lg"
-          className="mt-3 w-full shrink-0"
+          className="sticky bottom-0 z-10 mt-3 h-12 w-full shrink-0 md:static"
           onClick={onExecute}
           disabled={executing || gatewayLoading}
         >

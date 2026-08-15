@@ -723,7 +723,7 @@ export function DemoApp({
         onWallet={() => setView(1)}
       />
 
-      <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-3 px-4 py-3 sm:px-6">
+      <main className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden px-3 py-2 safe-pad-b sm:gap-3 sm:px-6 sm:py-3 md:overflow-hidden">
         <FlowStepper
           current={step}
           view={view}
@@ -733,7 +733,7 @@ export function DemoApp({
           unlocked={unlocked}
         />
 
-        <div key={view} className="stage-in flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div key={view} className="stage-in flex min-h-0 flex-1 flex-col md:overflow-hidden">
           {view === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col">
               <WalletPanel
@@ -761,20 +761,21 @@ export function DemoApp({
           ) : null}
 
           {view === 2 ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-visible">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 md:overflow-hidden">
               <PresetGallery
                 presets={presets}
                 busyId={busyPreset}
                 onRun={(id) => void handlePreset(id)}
                 onLoad={(id) => void handlePreset(id)}
               />
-              <div className="relative z-0 grid min-h-0 flex-1 gap-3 overflow-hidden md:grid-cols-2">
+              <div className="relative z-0 grid min-h-0 flex-1 gap-3 md:grid-cols-2 md:overflow-hidden">
                 <QueryComposer
                   prompt={prompt}
                   onPrompt={setPrompt}
                   decomposing={decomposing}
                   onDecompose={() => void decompose({ prompt })}
                 />
+                <div className="hidden min-h-0 md:flex md:h-full md:flex-col">
                 <MarketplacePanel
                   query={query}
                   onQuery={setQuery}
@@ -796,13 +797,14 @@ export function DemoApp({
                   inspecting={inspecting}
                   inspect={inspect}
                 />
+                </div>
               </div>
             </div>
           ) : null}
 
           {view === 3 ? (
             plan ? (
-              <section className="grid min-h-0 flex-1 gap-3 md:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.85fr)]">
+              <section className="flex min-h-0 flex-1 flex-col gap-3 md:grid md:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.85fr)] md:overflow-hidden">
                 <FlowTimeline
                   plan={plan}
                   executing={executing}
@@ -838,7 +840,7 @@ export function DemoApp({
           ) : null}
 
           {view === 4 ? (
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 flex-1 md:overflow-hidden">
               {plan ? (
                 <FlowTimeline
                   plan={plan}
@@ -864,15 +866,15 @@ export function DemoApp({
           ) : null}
 
           {view === 5 ? (
-            <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 md:overflow-hidden">
               <div className="min-h-0 flex-1 overflow-hidden rounded-2xl">
                 {plan?.assembled ? <AssembledResult plan={plan} /> : <EmptyStage />}
               </div>
-              <div className="flex shrink-0 items-center justify-center gap-3 pb-1">
+              <div className="flex shrink-0 items-center justify-center gap-2 sm:gap-3">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="h-12 min-w-[10rem] cursor-pointer border-cyan/40 bg-card/80 px-6 text-base shadow-[0_0_28px_-10px_oklch(0.84_0.13_196/0.55)] hover:border-cyan/65 hover:bg-card"
+                  className="h-12 min-w-0 flex-1 cursor-pointer border-cyan/40 bg-card/80 px-4 text-base shadow-[0_0_28px_-10px_oklch(0.84_0.13_196/0.55)] hover:border-cyan/65 hover:bg-card sm:min-w-[10rem] sm:flex-none sm:px-6"
                   onClick={goWallet}
                 >
                   <WalletIcon />
@@ -880,7 +882,7 @@ export function DemoApp({
                 </Button>
                 <Button
                   size="lg"
-                  className="h-12 min-w-[10rem] cursor-pointer px-6 text-base"
+                  className="h-12 min-w-0 flex-1 cursor-pointer px-4 text-base sm:min-w-[10rem] sm:flex-none sm:px-6"
                   onClick={startAgain}
                 >
                   <SparkleIcon />

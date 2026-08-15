@@ -147,6 +147,14 @@
   [type="reset"]:disabled {
     cursor: not-allowed;
   }
+  button,
+  [role="button"],
+  a,
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
+  }
 }
 
 @layer utilities {
@@ -189,6 +197,15 @@
 
   .animate-log-in {
     animation: log-in 0.28s ease-out both;
+  }
+
+  .safe-pad-x {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .safe-pad-b {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
 
   .animate-pulse-soft {

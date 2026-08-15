@@ -70,7 +70,7 @@ export function FundDialog({
             <div className="flex justify-center">
               <div className="rounded-2xl bg-[#070b16] p-3 ring-1 ring-white/10">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrSrc} alt="USDC deposit QR" width={200} height={200} className="size-[200px]" />
+                <img src={qrSrc} alt="USDC deposit QR" width={200} height={200} className="size-[160px] sm:size-[200px]" />
               </div>
             </div>
           ) : null}

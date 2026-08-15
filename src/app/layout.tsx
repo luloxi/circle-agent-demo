@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Outfit } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   description:
     "Decompose an agent query into Marketplace services, estimate USDC nanopayments, and run the flow.",
   icons: { icon: "/logo.svg" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#070b16",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

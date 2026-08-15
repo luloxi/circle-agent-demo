@@ -134,14 +134,14 @@ export function WalletPanel({
     return (
       <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
         <div className="glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/8 px-4 py-3">
-            <div>
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/8 px-3 py-3 sm:gap-3 sm:px-4">
+            <div className="min-w-0">
               <p className="text-[11px] tracking-[0.16em] text-cyan uppercase">Activity</p>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">
+              <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
                 {entries.length ? `${entries.length} events this session` : "Nothing logged yet"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
                 onClick={onClearActivity}
@@ -203,7 +203,7 @@ export function WalletPanel({
   }
 
   return (
-    <div className="mx-auto my-auto flex w-full max-w-lg flex-col items-center gap-4">
+    <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-4 md:my-auto">
       <div
         className={cn(
           "relative w-full shrink-0 overflow-hidden rounded-[1.4rem] p-5 shadow-[0_24px_60px_-28px_oklch(0.45_0.14_262/0.7)]",
@@ -240,7 +240,7 @@ export function WalletPanel({
           </div>
         ) : (
           <>
-            <div className="relative mt-6 flex items-center gap-2 font-mono text-[13px] tracking-[0.18em] text-white/80">
+            <div className="relative mt-6 flex flex-wrap items-center gap-2 font-mono text-[13px] tracking-[0.12em] text-white/80 sm:tracking-[0.18em]">
               <span className="min-w-0 truncate">{truncateAddress(wallet!.address, 8, 6)}</span>
               <button
                 type="button"
@@ -285,9 +285,9 @@ export function WalletPanel({
         )}
       </div>
 
-      <div className="flex w-full shrink-0 justify-center gap-2">
+      <div className="flex w-full shrink-0 flex-wrap justify-center gap-2">
         {!connected ? (
-          <Button onClick={onConnect} disabled={connecting} size="lg" className="cursor-pointer">
+          <Button onClick={onConnect} disabled={connecting} size="lg" className="h-12 w-full cursor-pointer sm:w-auto">
             {connecting ? <Loader2Icon className="animate-spin" /> : <WalletIcon />}
             Connect
           </Button>
@@ -298,8 +298,10 @@ export function WalletPanel({
               disabled={funding}
               size="lg"
               className={cn(
-                "cursor-pointer",
-                empty && "min-w-[12.5rem] shadow-[0_0_28px_-6px_oklch(0.84_0.13_196/0.7)]",
+                "h-12 cursor-pointer",
+                empty
+                  ? "w-full shadow-[0_0_28px_-6px_oklch(0.84_0.13_196/0.7)] sm:w-auto sm:min-w-[12.5rem]"
+                  : "flex-1 sm:flex-none",
               )}
             >
               {funding ? <Loader2Icon className="animate-spin" /> : <DropletsIcon />}
@@ -313,8 +315,8 @@ export function WalletPanel({
               variant="outline"
               size="lg"
               onClick={onRefresh}
-              aria-label="Refresh"
-              className="cursor-pointer"
+              aria-label="Refresh balance"
+              className="h-12 cursor-pointer"
             >
               <RefreshCwIcon />
             </Button>
@@ -322,17 +324,17 @@ export function WalletPanel({
               variant="outline"
               size="lg"
               onClick={onDisconnect}
-              className="cursor-pointer"
+              className="h-12 cursor-pointer"
             >
               <LogOutIcon />
-              Disconnect
+              <span className="hidden sm:inline">Disconnect</span>
             </Button>
           </>
         )}
         <Button
           variant={showActivity ? "default" : "outline"}
           size="lg"
-          className="cursor-pointer"
+          className="h-12 cursor-pointer"
           onClick={() => setShowActivity((open) => !open)}
           aria-pressed={showActivity}
         >
