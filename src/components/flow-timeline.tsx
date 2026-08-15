@@ -39,6 +39,7 @@ export function FlowTimeline({
   vanillaUsdc,
   gatewayLoading,
   onLoadGateway,
+  hint,
 }: {
   plan: QueryPlan;
   executing: boolean;
@@ -52,6 +53,7 @@ export function FlowTimeline({
   vanillaUsdc?: number | null;
   gatewayLoading?: boolean;
   onLoadGateway?: () => void;
+  hint?: string | null;
 }) {
   const showGateway =
     Boolean(onLoadGateway) && gatewayNeedsLoad(gatewayUsdc, Math.max(plan.estimatedTotal, 0.01));
@@ -101,6 +103,10 @@ export function FlowTimeline({
             onLoad={onLoadGateway}
           />
         </div>
+      ) : null}
+
+      {hint ? (
+        <p className="mt-3 shrink-0 text-xs leading-relaxed text-destructive">{hint}</p>
       ) : null}
 
       {plan.steps.length > 0 ? (

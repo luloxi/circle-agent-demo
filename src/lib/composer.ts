@@ -276,6 +276,7 @@ export function resolvePayRequest(
       data: JSON.stringify({
         query: queryFromPrompt(opts?.query || prompt, fallback),
         numResults: 5,
+        type: "auto",
       }),
     };
   }
@@ -436,6 +437,22 @@ function alternativesFor(
   return out.slice(0, 2);
 }
 
+function pinnedListingForRole(role: PresetRole): ServiceListing | undefined {
+  if (role.role === "prices" || /allium\.so/i.test(role.fallbackUrl)) {
+    return PINNED_LIVE_LISTINGS.find((item) => /allium\.so/i.test(item.resource));
+  }
+  if (
+    role.role === "search" ||
+    role.role === "social" ||
+    role.role === "odds" ||
+    role.role === "context" ||
+    /exa\.ai/i.test(role.fallbackUrl)
+  ) {
+    return PINNED_LIVE_LISTINGS.find((item) => /exa\.ai/i.test(item.resource));
+  }
+  return undefined;
+}
+
 function makeStep(
   role: PresetRole,
   catalog: ServiceListing[],
@@ -443,7 +460,11 @@ function makeStep(
   preferredChain?: string,
   live = false,
 ): FlowStep {
-  const listing = pickListing(catalog, role, preferredChain, live);
+  const pinned = live ? pinnedListingForRole(role) : undefined;
+  const listing =
+    pinned && (!preferredChain || listingAcceptsChain(pinned, preferredChain))
+      ? pinned
+      : pickListing(catalog, role, preferredChain, live);
   return {
     id: `step-${index}-${role.role}`,
     title: role.title,

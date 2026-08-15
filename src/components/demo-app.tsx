@@ -41,7 +41,7 @@ import type {
 const DEFAULT_DEMO =
   process.env.NEXT_PUBLIC_DEFAULT_DEMO_MODE !== "false";
 
-const DEFAULT_SPEND_LIMIT = 0.15;
+const DEFAULT_SPEND_LIMIT = 1;
 
 export function DemoApp({
   initialCatalog,
@@ -89,6 +89,7 @@ export function DemoApp({
   const [plan, setPlan] = useState<QueryPlan | null>(null);
   const [decomposing, setDecomposing] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [runHint, setRunHint] = useState<string | null>(null);
   const [busyPreset, setBusyPreset] = useState<string | null>(null);
   const [spendLimit, setSpendLimit] = useState(DEFAULT_SPEND_LIMIT);
   const [sessionSpent, setSessionSpent] = useState(0);
@@ -451,6 +452,7 @@ export function DemoApp({
         presetId: opts.presetId,
       });
       setPlan(result.plan);
+      setRunHint(null);
       setPresets(result.presets);
       if (opts.prompt) setPrompt(opts.prompt);
       else if (result.plan.prompt) setPrompt(result.plan.prompt);
@@ -472,25 +474,30 @@ export function DemoApp({
   async function executeCurrent(seed?: QueryPlan) {
     const active = seed ?? plan;
     if (!active || active.steps.length === 0) {
+      setRunHint("Decompose a query first.");
       log("warn", "RUN", "Decompose a query first.");
       return;
     }
     if (active.estimatedTotal > spendLimit) {
-      log(
-        "warn",
-        "RUN",
-        `Plan ${active.estimatedTotal} USDC exceeds the ${spendLimit} USDC spend limit.`,
-      );
+      const msg = `Plan ${active.estimatedTotal} USDC exceeds the ${spendLimit} USDC cap. Raise Cap on the right.`;
+      setRunHint(msg);
+      log("warn", "RUN", msg);
       return;
     }
     if (sessionSpent + active.estimatedTotal > spendLimit) {
-      log("warn", "RUN", "This run would push the session over the spend limit.");
+      const msg = `This run would push the session over the ${spendLimit} USDC cap. Raise Cap on the right.`;
+      setRunHint(msg);
+      log("warn", "RUN", msg);
       return;
     }
 
     const connected = await ensureWallet();
-    if (!connected?.address) return;
+    if (!connected?.address) {
+      setRunHint("Connect an agent wallet before Execute.");
+      return;
+    }
 
+    setRunHint(null);
     setExecuting(true);
     reveal(4);
     log("pay", "RUN", `Executing “${active.title}” (${active.steps.length} steps)`);
@@ -514,6 +521,7 @@ export function DemoApp({
     let ok = true;
     const liveBalance = { value: balanceUsdc };
 
+    try {
     for (const step of working.steps) {
       working = {
         ...working,
@@ -609,16 +617,27 @@ export function DemoApp({
       ...prev.slice(0, 7),
     ]);
     log(ok ? "ok" : "warn", "RUN", ok ? `Assembled · ${spent} USDC` : `Stopped · ${spent} USDC spent`);
-    if (ok) reveal(5);
-    if (!demoMode) {
-      const ceiling = liveBalance.value ?? undefined;
-      const next = await handleRefresh({ silent: true, ceiling });
-      if (next != null) {
-        log("ok", "BAL", `Wallet ${next.toFixed(3)} USDC`);
-      }
-      schedulePostSpendRefresh(ceiling);
+    if (!ok) {
+      const failed = working.steps.find((s) => s.error);
+      setRunHint(failed?.error ?? "A hop failed. Check the step for the seller error.");
     }
-    setExecuting(false);
+    if (ok) reveal(5);
+    } catch (err) {
+      ok = false;
+      const message = err instanceof Error ? err.message : "Execute failed";
+      setRunHint(message);
+      log("error", "RUN", message);
+    } finally {
+      if (!demoMode) {
+        const ceiling = liveBalance.value ?? undefined;
+        const next = await handleRefresh({ silent: true, ceiling });
+        if (next != null) {
+          log("ok", "BAL", `Wallet ${next.toFixed(3)} USDC`);
+        }
+        schedulePostSpendRefresh(ceiling);
+      }
+      setExecuting(false);
+    }
   }
 
   async function handlePreset(id: string) {
@@ -799,6 +818,7 @@ export function DemoApp({
                   vanillaUsdc={balanceUsdc}
                   gatewayLoading={gatewayLoading}
                   onLoadGateway={() => void handleLoadGateway()}
+                  hint={runHint}
                 />
                 <CostExplorer
                   plan={plan}
@@ -835,6 +855,7 @@ export function DemoApp({
                   vanillaUsdc={balanceUsdc}
                   gatewayLoading={gatewayLoading}
                   onLoadGateway={() => void handleLoadGateway()}
+                  hint={runHint}
                 />
               ) : (
                 <EmptyStage />

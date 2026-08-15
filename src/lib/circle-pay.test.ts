@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { gatewayNeedsLoad, pickPayChain, planEcoOnboard, sizeEcoDeposit } from "./circle-chains";
-import { isSafeHttpUrl } from "./circle-safety";
+import { isSafeHttpUrl, preferredPayMethod } from "./circle-safety";
 import {
   acceptsFromInspectSummary,
   parsePaymentRequired,
@@ -119,6 +119,12 @@ test("isSafeHttpUrl allows multi-param GET resources", () => {
     isSafeHttpUrl("https://api.aisa.one/apis/v2/coingecko/simple/price?ids=bitcoin,ethereum&vs_currencies=usd"),
     true,
   );
+});
+
+test("preferredPayMethod keeps POST from the composer over inspect GET", () => {
+  assert.equal(preferredPayMethod("POST", "GET"), "POST");
+  assert.equal(preferredPayMethod(undefined, "GET"), "GET");
+  assert.equal(preferredPayMethod("POST", undefined), "POST");
 });
 
 test("gatewayNeedsLoad is about payable balance, not the 0.5 deposit floor", () => {

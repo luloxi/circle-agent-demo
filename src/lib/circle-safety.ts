@@ -43,6 +43,12 @@ export function normalizeMethod(value: string | undefined, fallback: HttpMethod 
   return fallback;
 }
 
+/** Caller-known method (from resolvePayRequest) wins over inspect's guess. */
+export function preferredPayMethod(hint?: string, inspected?: string): HttpMethod {
+  if (hint && isHttpMethod(hint)) return hint.toUpperCase() as HttpMethod;
+  return normalizeMethod(inspected);
+}
+
 export function isSafeJsonPayload(value: string): boolean {
   // Quotes are required in JSON; argv spawn does not go through a shell.
   if (/[;\n\r|&$`<>()]/.test(value)) return false;

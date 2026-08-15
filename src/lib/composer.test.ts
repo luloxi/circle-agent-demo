@@ -132,6 +132,24 @@ test("resolvePayRequest uses Allium POST for prices", () => {
   assert.equal(body[0].chain, "ethereum");
 });
 
+test("every live suggested preset pays Allium or Exa over POST", () => {
+  for (const id of ["prices", "search", "social", "odds"] as const) {
+    const plan = decomposePreset(id, MOCK_SERVICES, "BASE", true);
+    assert.ok(plan, id);
+    assert.equal(plan.steps.length, 2, id);
+    for (const step of plan.steps) {
+      const req = resolvePayRequest(step.listing, {
+        role: step.role,
+        prompt: plan.prompt,
+        query: step.role === "context" ? step.intent : undefined,
+      });
+      assert.equal(req.method, "POST", `${id} ${step.role}`);
+      assert.match(req.url, /allium\.so|exa\.ai/, `${id} ${step.role}`);
+      assert.ok(req.data, `${id} ${step.role}`);
+    }
+  }
+});
+
 test("live suggested presets keep two payable hops; custom stays one", () => {
   const prices = decomposePreset("prices", MOCK_SERVICES, "BASE", true);
   assert.ok(prices);

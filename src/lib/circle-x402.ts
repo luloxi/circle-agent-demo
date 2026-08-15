@@ -59,11 +59,23 @@ export function acceptsFromInspectSummary(inspectData: Record<string, unknown> |
     }));
 }
 
-export async function fetchRaw402Accepts(url: string): Promise<PaymentAcceptance[]> {
+export async function fetchRaw402Accepts(
+  url: string,
+  opts?: { method?: string; data?: string },
+): Promise<PaymentAcceptance[]> {
   if (!isSafeHttpUrl(url)) return [];
   try {
+    const method = (opts?.method ?? "GET").toUpperCase();
     const res = await fetch(url, {
-      headers: { Accept: "application/json" },
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(opts?.data && method !== "GET" && method !== "HEAD"
+          ? { "Content-Type": "application/json" }
+          : {}),
+      },
+      body:
+        opts?.data && method !== "GET" && method !== "HEAD" ? opts.data : undefined,
       cache: "no-store",
       redirect: "follow",
     });

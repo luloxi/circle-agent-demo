@@ -15,6 +15,7 @@ import {
   isSafeHttpUrl,
   isSafeJsonPayload,
   normalizeMethod,
+  preferredPayMethod,
 } from "@/lib/circle-safety";
 import {
   acceptsFromInspectSummary,
@@ -130,14 +131,15 @@ export async function POST(request: Request) {
   const inspectAccepts = Array.isArray(inspectData?.accepts)
     ? (inspectData?.accepts as PaymentAcceptance[])
     : [];
-  const raw402 = await fetchRaw402Accepts(url);
+  const method = preferredPayMethod(
+    methodHint,
+    typeof inspectData?.method === "string" ? inspectData.method : undefined,
+  );
+  const raw402 = await fetchRaw402Accepts(url, { method, data });
   const accepts = mergeAccepts(
     inspectAccepts,
     acceptsFromInspectSummary(inspectData),
     raw402,
-  );
-  const method = normalizeMethod(
-    (typeof inspectData?.method === "string" && inspectData.method) || methodHint,
   );
   const advertised = advertisedUsdc(inspectData, accepts);
   const funded = await readFundedPools(address, accepts, network.cliChain);
