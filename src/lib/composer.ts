@@ -52,7 +52,7 @@ export const PRESETS: PresetDefinition[] = [
         title: "Context",
         intent: "What moved the tape today",
         role: "search",
-        keywords: ["search", "sonar", "research"],
+        keywords: ["search", "sonar"],
         fallbackUrl: "https://api.aisa.one/apis/v2/perplexity/sonar",
       },
     ],
@@ -69,7 +69,7 @@ export const PRESETS: PresetDefinition[] = [
         title: "Web search",
         intent: "Find current sources on agentic USDC payments",
         role: "search",
-        keywords: ["search", "sonar", "research"],
+        keywords: ["search", "sonar"],
         fallbackUrl: "https://api.aisa.one/apis/v2/perplexity/sonar",
       },
       {
@@ -171,13 +171,18 @@ export function resolvePayRequest(
     .replace(/\{contract_address\}/gi, "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
 
   if (/perplexity|sonar/i.test(url) || role === "search") {
-    const model = /sonar-pro/i.test(url) ? "sonar-pro" : "sonar";
+    if (role === "search") {
+      url = url.replace(/\/perplexity\/sonar[-a-z]*$/i, "/perplexity/sonar");
+    }
+    const modelMatch = url.match(/\/perplexity\/(sonar(?:-[a-z]+)*)$/i);
+    const model = modelMatch?.[1] ?? "sonar";
     return {
       url,
       method: "POST",
       data: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt.slice(0, 400) }],
+        stream: false,
       }),
     };
   }
@@ -227,6 +232,9 @@ function scoreListing(
   }
   if (listingAcceptsChain(listing, preferredChain)) score += 8;
   if (live && isTemplatedResource(listing.resource)) score -= 12;
+  if (live && /\/coingecko\/simple\/price(?:\?|$)/i.test(listing.resource)) score += 6;
+  if (live && /\/perplexity\/sonar$/i.test(listing.resource)) score += 6;
+  if (live && /sonar-deep-research|sonar-reasoning/i.test(listing.resource)) score -= 10;
   return score;
 }
 
@@ -537,7 +545,7 @@ const DEFAULT_ROLES: PresetRole[] = [
     title: "Web search",
     intent: "Find relevant sources",
     role: "search",
-    keywords: ["search", "sonar", "research"],
+    keywords: ["search", "sonar"],
     fallbackUrl: "https://api.aisa.one/apis/v2/perplexity/sonar",
   },
   {

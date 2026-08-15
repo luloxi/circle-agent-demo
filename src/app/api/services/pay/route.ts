@@ -252,7 +252,9 @@ export async function POST(request: Request) {
     "--timeout",
     "60",
   ];
-  if (data) baseArgs.push("--data", data);
+  if (data) {
+    baseArgs.push("--data", data, "-H", "Content-Type: application/json");
+  }
 
   const estimate = await runCircle([...baseArgs, "--estimate"], { timeoutMs: 25_000 });
   if (!estimate.ok) {

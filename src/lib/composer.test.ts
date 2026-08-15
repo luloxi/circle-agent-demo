@@ -125,6 +125,45 @@ test("resolvePayRequest adds CoinGecko ids and vs_currencies", () => {
   assert.match(req.url, /vs_currencies=usd/);
 });
 
+test("resolvePayRequest maps Sonar search onto /sonar with matching model", () => {
+  const deep = listing(
+    "https://api.aisa.one/apis/v2/perplexity/sonar-deep-research",
+    ["eip155:8453"],
+    { name: "Sonar Deep", tags: ["search", "sonar"] },
+  );
+  const req = resolvePayRequest(deep, {
+    role: "search",
+    prompt: "latest USDC agent payments",
+  });
+  assert.equal(req.method, "POST");
+  assert.match(req.url, /\/perplexity\/sonar$/);
+  const body = JSON.parse(req.data ?? "{}");
+  assert.equal(body.model, "sonar");
+  assert.equal(body.messages[0].content.includes("USDC"), true);
+});
+
+test("pickListing live prefers /sonar over sonar-deep-research", () => {
+  const deep = listing(
+    "https://api.aisa.one/apis/v2/perplexity/sonar-deep-research",
+    ["eip155:8453"],
+    { name: "Deep", tags: ["search", "sonar", "research"] },
+  );
+  const sonar = listing(
+    "https://api.aisa.one/apis/v2/perplexity/sonar",
+    ["eip155:8453"],
+    { name: "Sonar", tags: ["search", "sonar"] },
+  );
+  const role: PresetRole = {
+    title: "Web search",
+    intent: "search",
+    role: "search",
+    keywords: ["search", "sonar"],
+    fallbackUrl: sonar.resource,
+  };
+  const picked = pickListing([deep, sonar], role, "BASE", true);
+  assert.equal(picked.resource, sonar.resource);
+});
+
 test("searchRequestForMode passes the next chain, not the leftover demo network", () => {
   assert.deepEqual(searchRequestForMode("BASE", "ARC-TESTNET"), {
     demo: false,
