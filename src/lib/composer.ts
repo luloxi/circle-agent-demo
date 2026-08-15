@@ -4,7 +4,13 @@
  */
 
 import { cliChainFromNetwork } from "@/lib/circle-chains";
-import { cheapestAcceptance, serviceName, usdcFromAcceptance } from "@/lib/format";
+import {
+  cheapestAcceptance,
+  serviceDescription,
+  serviceName,
+  serviceTitle,
+  usdcFromAcceptance,
+} from "@/lib/format";
 import { MOCK_SERVICES } from "@/lib/mock-data";
 import {
   formatQuoteLine,
@@ -753,6 +759,43 @@ const DEFAULT_ROLES: PresetRole[] = [
     fallbackUrl: "https://api.example-agents.dev/v1/summarize",
   },
 ];
+
+function roleForListing(listing: ServiceListing): string {
+  const url = listing.resource;
+  if (/allium\.so\/api\/v1\/developer\/prices$/i.test(url)) return "prices";
+  if (/exa\.ai\/search/i.test(url)) return "search";
+  return "catalog";
+}
+
+/** One-hop plan from a catalog row the user picked in Query. */
+export function planFromListing(
+  listing: ServiceListing,
+  opts?: { prompt?: string },
+): QueryPlan {
+  const title = serviceTitle(listing);
+  const role = roleForListing(listing);
+  const step: FlowStep = {
+    id: `step-0-${role}`,
+    title,
+    intent: serviceDescription(listing),
+    role,
+    listing,
+    priceUsdc: listingPrice(listing),
+    quality: "standard",
+    status: "pending",
+    alternatives: [],
+  };
+  return {
+    id: `plan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    title,
+    prompt: (opts?.prompt ?? "").trim() || title,
+    source: "composer",
+    steps: [step],
+    estimatedTotal: step.priceUsdc,
+    spentTotal: 0,
+    note: `Picked ${serviceName(listing)} from the catalog.`,
+  };
+}
 
 export function decomposePrompt(
   prompt: string,

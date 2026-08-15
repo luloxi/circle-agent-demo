@@ -19,6 +19,7 @@ import {
   applyAlternative,
   assemblePlan,
   excerptFromResult,
+  planFromListing,
   removeStep,
   resolvePayRequest,
 } from "@/lib/composer";
@@ -414,6 +415,15 @@ export function DemoApp({
     log("info", "SELECT", service.resource);
   }
 
+  function handlePaySelected() {
+    if (!selected) return;
+    const next = planFromListing(selected, { prompt });
+    setPlan(next);
+    setRunHint(null);
+    log("ok", "PLAN", `1 step · ${next.estimatedTotal} USDC · ${selected.resource}`);
+    reveal(3);
+  }
+
   async function handleInspect() {
     if (!selected) return;
     setInspecting(true);
@@ -793,7 +803,7 @@ export function DemoApp({
                   selected={selected}
                   onSelect={handleSelect}
                   onInspect={() => void handleInspect()}
-                  onPay={() => setView(3)}
+                  onPay={handlePaySelected}
                   inspecting={inspecting}
                   inspect={inspect}
                 />

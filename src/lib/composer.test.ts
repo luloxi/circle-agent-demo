@@ -9,6 +9,7 @@ import {
   isMockMarketplaceHost,
   listingAcceptsChain,
   pickListing,
+  planFromListing,
   resolvePayRequest,
   selectLiveRoles,
   type PresetRole,
@@ -148,6 +149,26 @@ test("every live suggested preset pays Allium or Exa over POST", () => {
       assert.ok(req.data, `${id} ${step.role}`);
     }
   }
+});
+
+test("planFromListing turns a catalog pick into a one-hop Cost plan", () => {
+  const picked = listing(
+    "https://agents.allium.so/api/v1/developer/prices/history",
+    ["eip155:8453"],
+    { name: "Allium", description: "Retrieve historical OHLC token prices." },
+  );
+  picked.metadata = {
+    ...picked.metadata,
+    path: "/api/v1/developer/prices/history",
+    method: "POST",
+    description: "Retrieve historical OHLC token prices.",
+  };
+  const plan = planFromListing(picked);
+  assert.equal(plan.steps.length, 1);
+  assert.equal(plan.steps[0].listing.resource, picked.resource);
+  assert.equal(plan.steps[0].role, "catalog");
+  assert.match(plan.title, /historical|OHLC/i);
+  assert.ok(plan.estimatedTotal > 0);
 });
 
 test("live suggested presets keep two payable hops; custom stays one", () => {
