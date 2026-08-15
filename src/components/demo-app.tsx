@@ -510,7 +510,7 @@ export function DemoApp({
           chain: network,
           url: payReq.url,
           address: connected.address,
-          maxAmount: Math.max(step.priceUsdc, 0.001),
+          maxAmount: Math.max(step.priceUsdc, 0.05),
           method: payReq.method,
           data: payReq.data,
         });

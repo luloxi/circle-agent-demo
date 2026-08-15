@@ -224,16 +224,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (advertised != null && maxAmount + 1e-9 < advertised) {
-    return Response.json(
-      {
-        error: `Cap ${maxAmount} USDC is below the advertised ${advertised} USDC.`,
-        hint: "Raise max-amount or pick a cheaper alternative.",
-      },
-      { status: 400 },
-    );
-  }
-  const payCap = advertised ?? maxAmount;
+  const payCap = Number(
+    Math.max(advertised ?? 0, maxAmount, 0.001).toFixed(6),
+  );
 
   const baseArgs = [
     "services",

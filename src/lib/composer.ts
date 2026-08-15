@@ -323,6 +323,14 @@ export function pickListing(
   preferredChain?: string,
   live = false,
 ): ServiceListing {
+  if (live && role.fallbackUrl) {
+    const pinned = catalog.find(
+      (item) =>
+        item.resource === role.fallbackUrl &&
+        (!preferredChain || listingAcceptsChain(item, preferredChain)),
+    );
+    if (pinned) return pinned;
+  }
   const eligible = catalog.filter((item) => {
     if (preferredChain && !listingAcceptsChain(item, preferredChain)) return false;
     if (live && isMockMarketplaceHost(item.resource)) return false;
