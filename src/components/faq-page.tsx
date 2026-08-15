@@ -40,6 +40,7 @@ const PILLARS = [
 ];
 
 const LINKS = [
+  { href: "/agent.md", label: "Agent skill" },
   { href: "https://developers.circle.com/agent-stack", label: "Agent Stack" },
   { href: "https://agents.circle.com/services", label: "Catalog" },
   { href: "https://www.arc.io/", label: "Arc" },
@@ -195,6 +196,20 @@ export function FaqPage() {
                   Demo Mode always succeeds with a mock wallet. Live mode uses the
                   public Discovery API plus the Circle CLI on this machine (Arc Testnet
                   by default).
+                </p>
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="agents">
+              <AccordionTrigger>Can another agent pay here?</AccordionTrigger>
+              <AccordionContent>
+                <p>
+                  Yes — with its own Circle Agent Wallet, never this host&apos;s
+                  env. Fetch{" "}
+                  <a href="/agent.md" className="text-cyan underline">
+                    /agent.md
+                  </a>{" "}
+                  and follow it. Live pay on the public Vercel URL is disabled
+                  so visitors cannot spend the deployer&apos;s USDC.
                 </p>
               </AccordionContent>
             </AccordionItem>

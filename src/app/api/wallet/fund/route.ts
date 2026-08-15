@@ -1,4 +1,5 @@
 import { runCircle } from "@/lib/circle-cli";
+import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
 import { DEMO_FUND_AMOUNT, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
 import { isAddress, readJsonBody, readNetwork, wantsDemo } from "@/lib/request";
@@ -15,6 +16,10 @@ export async function POST(request: Request) {
   const demo = wantsDemo({ body });
   const network = getNetwork(readNetwork({ body }));
   const address = typeof body.address === "string" ? body.address.trim() : "";
+
+  if (!demo && isSharedHost()) {
+    return Response.json(sharedHostLiveError(), { status: 403 });
+  }
 
   if (demo) {
     await sleep(800);

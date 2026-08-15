@@ -10,6 +10,7 @@ import {
 } from "@/lib/circle-cli";
 import { DEMO_STARTING_BALANCE, DEMO_WALLET, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
+import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
 import { readJsonBody, readNetwork, wantsDemo } from "@/lib/request";
 import type { WalletStatusPayload } from "@/lib/types";
 
@@ -23,6 +24,10 @@ export async function POST(request: Request) {
   const body = await readJsonBody(request);
   const demo = wantsDemo({ body });
   const network = getNetwork(readNetwork({ body }));
+
+  if (!demo && isSharedHost()) {
+    return Response.json(sharedHostLiveError(), { status: 403 });
+  }
 
   if (demo) {
     await sleep(700);

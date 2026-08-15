@@ -1,4 +1,5 @@
 import { parseRequestId, runCircle } from "@/lib/circle-cli";
+import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
 import { getNetwork } from "@/lib/networks";
 import { isEmail, readJsonBody, readNetwork } from "@/lib/request";
 
@@ -10,6 +11,9 @@ export const runtime = "nodejs";
  *   2. { step: "complete", requestId, otp }
  */
 export async function POST(request: Request) {
+  if (isSharedHost()) {
+    return Response.json(sharedHostLiveError(), { status: 403 });
+  }
   const body = await readJsonBody(request);
   const step = body.step === "complete" ? "complete" : "init";
   const network = getNetwork(readNetwork({ body }));

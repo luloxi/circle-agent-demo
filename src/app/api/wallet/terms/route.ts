@@ -1,4 +1,5 @@
 import { acceptTerms, getTerms } from "@/lib/circle-cli";
+import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
 import { readJsonBody } from "@/lib/request";
 
 export const runtime = "nodejs";
@@ -19,6 +20,9 @@ export async function GET() {
  * We never set CIRCLE_ACCEPT_TERMS=1 automatically.
  */
 export async function POST(request: Request) {
+  if (isSharedHost()) {
+    return Response.json(sharedHostLiveError(), { status: 403 });
+  }
   const body = await readJsonBody(request);
   if (body.accept !== true) {
     return Response.json(

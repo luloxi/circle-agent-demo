@@ -16,6 +16,7 @@ import {
 import { fetchRaw402Accepts, mergeAccepts } from "@/lib/circle-x402";
 import { mockPay, sleep } from "@/lib/mock-data";
 import { getNetwork } from "@/lib/networks";
+import { isSharedHost, sharedHostLiveError } from "@/lib/hosted";
 import { isAddress, readJsonBody, readNetwork, wantsDemo } from "@/lib/request";
 import type { PaymentAcceptance } from "@/lib/types";
 
@@ -53,6 +54,10 @@ export async function POST(request: Request) {
       { error: "Request body must be valid JSON without shell metacharacters." },
       { status: 400 },
     );
+  }
+
+  if (!demo && isSharedHost()) {
+    return Response.json(sharedHostLiveError(), { status: 403 });
   }
 
   if (demo) {

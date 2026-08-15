@@ -118,6 +118,20 @@ Local live mode stays `npm run dev` on this machine (CLI already logged in).
 
 ---
 
+## For agents
+
+Any agent can fetch the buyer skill and pay with **its own** wallet:
+
+```bash
+curl -sL https://circle-agent-demo.vercel.app/agent.md
+```
+
+Do **not** put your Circle CLI session or OTP in Vercel env vars. That would make every visitor spend your USDC. The hosted site therefore refuses live login / fund / pay. Discovery and Demo Mode stay public.
+
+Local skill: `.agents/skills/use-aqc/SKILL.md`.
+
+---
+
 ## Booth walkthrough (Demo Mode)
 
 1. Leave **Demo** on.

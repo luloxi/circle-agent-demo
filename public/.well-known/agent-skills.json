@@ -1,0 +1,10 @@
+{
+  "name": "Agent Query Composer",
+  "skills": [
+    {
+      "name": "use-aqc",
+      "url": "/agent.md",
+      "description": "Each agent pays with its own Circle Agent Wallet. Hosted live pay is disabled."
+    }
+  ]
+}
