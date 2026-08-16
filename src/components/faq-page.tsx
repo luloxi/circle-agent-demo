@@ -53,8 +53,8 @@ export function FaqPage() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <SiteHeader variant="doc" />
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-16 sm:px-6">
-        <section className="relative mt-6 overflow-hidden rounded-[1.6rem] ring-1 ring-white/10">
+      <main className="mx-auto w-full max-w-6xl px-3 pb-16 pt-1 sm:px-6 sm:pt-2">
+        <section className="relative mt-3 sm:mt-6 overflow-hidden rounded-[1.6rem] ring-1 ring-white/10">
           <Image
             src="/faq/hero.jpg"
             alt=""
@@ -190,7 +190,7 @@ export function FaqPage() {
               <AccordionContent>
                 <p>
                   Inspect → estimate → pay. Official buyer path, one nanopayment per
-                  step. Chain comes from the seller&apos;s accepts[], method from
+                  step. Chain comes from the seller's accepts[], method from
                   inspect (-X).
                 </p>
               </AccordionContent>
@@ -225,13 +225,13 @@ export function FaqPage() {
               <AccordionTrigger>Can another agent pay here?</AccordionTrigger>
               <AccordionContent>
                 <p>
-                  Yes — with its own Circle Agent Wallet, never this host&apos;s
+                  Yes — with its own Circle Agent Wallet, never this host's
                   env. Fetch{" "}
                   <a href="/agent.md" className="text-cyan underline">
                     /agent.md
                   </a>{" "}
                   and follow it. Live pay on the public Vercel URL is disabled
-                  so visitors cannot spend the deployer&apos;s USDC.
+                  so visitors cannot spend the deployer's USDC.
                 </p>
               </AccordionContent>
             </AccordionItem>
