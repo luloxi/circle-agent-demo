@@ -205,7 +205,7 @@
   }
 
   .safe-pad-b {
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 
   .animate-pulse-soft {
@@ -221,6 +221,13 @@
 
   .stage-in {
     animation: stage-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Mobile-first breathing room */
+  @media (max-width: 639px) {
+    .glass {
+      border-radius: 1.1rem;
+    }
   }
 }
 
